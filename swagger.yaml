@@ -242,3 +242,60 @@ paths:
           description: Internal Server Error - Token refresh failed unexpectedly.
       security: []  # No access token required; refresh token only
 
+  /user/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout user and invalidate tokens
+      description: |
+        Logs out the currently authenticated user from the specified device.  
+        Invalidates all active refresh tokens for that device and removes the device record from the database.
+      security:
+        - bearerAuth: []   # Uses Authorization: Bearer <accessToken>
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+                  data:
+                    type: object
+                    example: {}
+        "401":
+          description: Unauthorized - Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Access token missing or invalid
+        "404":
+          description: User or device not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User or device not found or already logged out
+        "500":
+          description: Logout failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Failed to logout. Please try again later.
+
+
+
