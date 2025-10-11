@@ -5,7 +5,7 @@ info:
   description: API documentation for login and OTP verification
 
 servers:
-  - url: http://localhost:3002
+  - url: https://shinr-user-mgmt.onrender.com/
 
 tags:
   - name: Auth
@@ -90,3 +90,80 @@ paths:
           description: Invalid OTP or token
         "500":
           description: OTP verification failed
+
+  /user/login/resend-otp:
+    post:
+      tags:
+        - Auth
+      summary: Resend OTP for a user device
+      description: |
+        Resends an OTP for a user device. 
+        Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpToken
+              properties:
+                otpToken:
+                  type: string
+                  description: The token from the previous OTP request
+      responses:
+        "200":
+          description: OTP resent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP resent successfully
+                  data:
+                    type: object
+                    properties:
+                      otpToken:
+                        type: string
+                        description: New OTP token to be used for verification
+        "400":
+          description: Bad request due to invalid device or no active OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: No active OTP request
+                  code:
+                    type: string
+                    example: NO_ACTIVE_OTP
+        "429":
+          description: OTP request blocked due to cooldown or limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP resend cooldown
+                  code:
+                    type: string
+                    example: OTP_RESEND_COOLDOWN
+        "500":
+          description: Failed to resend OTP due to server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Failed to resend OTP. Please try again later.
+                  code:
+                    type: string
+                    example: OTP_RESEND_FAILED
