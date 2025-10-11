@@ -5,7 +5,7 @@ info:
   description: API documentation for login and OTP verification
 
 servers:
-  - url: http://localhost:3002
+  - url: https://shinr-user-mgmt.onrender.com/
 
 tags:
   - name: Auth
