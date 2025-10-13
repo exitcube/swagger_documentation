@@ -55,6 +55,13 @@ paths:
         - Auth
       summary: Verify OTP and generate access & refresh tokens
       description: Verifies the OTP for a user device and returns JWT tokens.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
@@ -91,6 +98,7 @@ paths:
         "500":
           description: OTP verification failed
 
+
   /user/login/resend-otp:
     post:
       tags:
@@ -99,6 +107,13 @@ paths:
       description: |
         Resends an OTP for a user device. 
         Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
@@ -112,22 +127,6 @@ paths:
                   type: string
                   description: The token from the previous OTP request
       responses:
-        "200":
-          description: OTP resent successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: OTP resent successfully
-                  data:
-                    type: object
-                    properties:
-                      otpToken:
-                        type: string
-                        description: New OTP token to be used for verification
         "400":
           description: Bad request due to invalid device or no active OTP
           content:
@@ -176,7 +175,13 @@ paths:
       description: >
         Refreshes the user's access and refresh tokens using a valid refresh token.  
         The endpoint validates the refresh token, device identity, and user status before issuing new tokens.
-      operationId: refreshTokenHandler
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
@@ -241,61 +246,4 @@ paths:
         "500":
           description: Internal Server Error - Token refresh failed unexpectedly.
       security: []  # No access token required; refresh token only
-
-  /user/logout:
-    post:
-      tags:
-        - Auth
-      summary: Logout user and invalidate tokens
-      description: |
-        Logs out the currently authenticated user from the specified device.  
-        Invalidates all active refresh tokens for that device and removes the device record from the database.
-      security:
-        - bearerAuth: []   # Uses Authorization: Bearer <accessToken>
-      responses:
-        "200":
-          description: Logged out successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Logged out successfully
-                  data:
-                    type: object
-                    example: {}
-        "401":
-          description: Unauthorized - Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Access token missing or invalid
-        "404":
-          description: User or device not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: User or device not found or already logged out
-        "500":
-          description: Logout failed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Failed to logout. Please try again later.
-
-
 
