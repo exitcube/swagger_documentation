@@ -55,6 +55,13 @@ paths:
         - Auth
       summary: Verify OTP and generate access & refresh tokens
       description: Verifies the OTP for a user device and returns JWT tokens.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
@@ -91,6 +98,7 @@ paths:
         "500":
           description: OTP verification failed
 
+
   /user/login/resend-otp:
     post:
       tags:
@@ -99,6 +107,13 @@ paths:
       description: |
         Resends an OTP for a user device. 
         Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
@@ -168,6 +183,7 @@ paths:
                     type: string
                     example: OTP_RESEND_FAILED
 
+
   /user/login/generate-refreshToken:
     post:
       tags:
@@ -176,7 +192,13 @@ paths:
       description: >
         Refreshes the user's access and refresh tokens using a valid refresh token.  
         The endpoint validates the refresh token, device identity, and user status before issuing new tokens.
-      operationId: refreshTokenHandler
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
