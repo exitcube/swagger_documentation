@@ -10,6 +10,8 @@ servers:
 tags:
   - name: Auth
     description: Authentication endpoints
+  - name: User Profile
+    description: User profile and location endpoints
 
 paths:
   /user/login/otp:
@@ -98,7 +100,6 @@ paths:
         "500":
           description: OTP verification failed
 
-
   /user/login/resend-otp:
     post:
       tags:
@@ -182,7 +183,6 @@ paths:
                   code:
                     type: string
                     example: OTP_RESEND_FAILED
-
 
   /user/login/generate-refreshToken:
     post:
@@ -326,12 +326,71 @@ paths:
                     type: string
                     example: Failed to logout. Please try again later.
 
+  /user-profile/get-location/reverse-geocode:
+    post:
+      tags:
+        - User Profile
+      summary: Get address from latitude and longitude
+      description: >
+        Fetches the address details (like city, state, country, pinCode, etc.) from given latitude and longitude.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - lat
+                - lng
+              properties:
+                lat:
+                  type: string
+                  example: "12.9716"
+                lng:
+                  type: string
+                  example: "77.5946"
+      responses:
+        "201":
+          description: Address fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Address fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      location:
+                        type: object
+                        description: Reverse geocoded address details
+                        example:
+                          addressLine1: MG Road
+                          city: Bangalore
+                          state: Karnataka
+                          country: India
+                          pinCode: 560001
+        "400":
+          description: Invalid latitude or longitude
+        "401":
+          description: Unauthorized - Missing or invalid bearer token
+        "500":
+          description: Failed to fetch address due to server error
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-
-
