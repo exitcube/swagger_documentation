@@ -376,11 +376,14 @@ paths:
                         type: object
                         description: Reverse geocoded address details
                         example:
+                          name: John Doe
                           addressLine1: MG Road
                           city: Bangalore
                           state: Karnataka
                           country: India
                           pinCode: 560001
+                          latitude: 12.9716
+                          longitude: 77.5946
         "400":
           description: Invalid latitude or longitude
         "401":
