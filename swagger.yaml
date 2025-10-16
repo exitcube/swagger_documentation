@@ -388,6 +388,152 @@ paths:
         "500":
           description: Failed to fetch address due to server error
 
+  /user-profile/add-address:
+    post:
+      tags:
+        - User Profile
+      summary: Add a new address for the user
+      description: Adds a new address for the authenticated user with optional nickname.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device identifier for the request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - addressLine1
+                - country
+                - city
+                - state
+                - pinCode
+                - latitude
+                - longitude
+              properties:
+                nickName:
+                  type: string
+                  description: Optional nickname for the address
+                name:
+                  type: string
+                  description: Name associated with the address
+                addressLine1:
+                  type: string
+                country:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                pinCode:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+      responses:
+        "201":
+          description: Address saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      addressId:
+                        type: number
+                      nickName:
+                        type: string
+                      address:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          addressLine1:
+                            type: string
+                          country:
+                            type: string
+                          city:
+                            type: string
+                          state:
+                            type: string
+                          pinCode:
+                            type: string
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                      savedAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Validation or bad request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Failed to save address
+
+  /user-profile/remove-address/{id}:
+    post:
+      tags:
+        - User Profile
+      summary: Remove an address by ID
+      description: Deactivates an address of the authenticated user using the address ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device identifier for the request
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID of the address to remove
+      responses:
+        "200":
+          description: Address removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Address removed successfully
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: number
+                        example: 1
+                      addressId:
+                        type: number
+        "400":
+          description: Invalid address ID
+        "401":
+          description: Unauthorized
+        "404":
+          description: Address not found
+        "500":
+          description: Failed to remove address
+
 components:
   securitySchemes:
     bearerAuth:
