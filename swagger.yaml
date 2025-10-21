@@ -326,6 +326,80 @@ paths:
                     type: string
                     example: Failed to logout. Please try again later.
 
+  /user-profile/location-autocomplete:
+    get:
+      tags:
+        - User Profile
+      summary: Get location suggestions by search query
+      description: >
+        Fetches autocomplete suggestions for locations based on a search query.
+        Requires authorization and validates that the search term is at least 3 characters long.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          required: true
+          schema:
+            type: string
+            minLength: 3
+          description: Search term for location autocomplete (minimum 3 characters)
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device identifier for the request
+      responses:
+        "200":
+          description: Autocomplete results fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Autocomplete suggestions fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        addressLine1:
+                          type: string
+                        country:
+                          type: string
+                        city:
+                          type: string
+                        state:
+                          type: string
+                        pinCode:
+                          type: string
+                        latitude:
+                          type: string
+                        longitude:
+                          type: string
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      totalPages:
+                        type: integer
+        "400":
+          description: Invalid search parameter
+        "401":
+          description: Unauthorized - Missing or invalid bearer token
+        "500":
+          description: Failed to fetch autocomplete suggestions
+
   /user-profile/get-location/reverse-geocode:
     post:
       tags:
