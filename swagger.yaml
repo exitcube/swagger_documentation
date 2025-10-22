@@ -611,6 +611,69 @@ paths:
         "500":
           description: Failed to remove address
 
+  /user-profile/select-address/{id}:
+    post:
+      tags:
+        - User Profile
+      summary: Select an address by ID
+      description: Marks a specific address as selected for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device identifier for the request
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID of the address to select
+      responses:
+        "200":
+          description: Address selected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Address selected successfully
+                  data:
+                    type: object
+                    properties:
+                      selected:
+                        type: number
+                        example: 1
+                      addressId:
+                        type: number
+                        example: 12
+                      address:
+                        type: object
+                        description: Selected address details
+                        example:
+                          id: 12
+                          name: John Doe
+                          addressLine1: MG Road
+                          city: Bangalore
+                          state: Karnataka
+                          country: India
+                          pinCode: 560001
+                          latitude: 12.9716
+                          longitude: 77.5946
+        "400":
+          description: Invalid address ID
+        "401":
+          description: Unauthorized
+        "404":
+          description: Address not found
+        "500":
+          description: Failed to select address
+
 components:
   securitySchemes:
     bearerAuth:
