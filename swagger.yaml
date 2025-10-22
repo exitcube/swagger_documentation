@@ -533,6 +533,8 @@ paths:
                         type: number
                       nickName:
                         type: string
+                      isDefault:
+                        type: boolean
                       address:
                         type: object
                         properties:
