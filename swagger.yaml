@@ -12,6 +12,8 @@ tags:
     description: Authentication endpoints
   - name: User Profile
     description: User profile and location endpoints
+  - name: Vehicle
+    description: Vehicle-related endpoints for fetching car details
 
 paths:
   /user/login/otp:
@@ -675,6 +677,116 @@ paths:
           description: Address not found
         "500":
           description: Failed to select address
+
+  /car:
+    get:
+      tags:
+        - Vehicle
+      summary: Fetch cars with filtering, sorting, and pagination
+      description: 
+        Retrieves a list of active cars based on optional filters such as model, make, and category.
+        Requires Bearer token authentication and a valid x-device-id header.
+      operationId: getCars
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: x-device-id
+          in: header
+          required: true
+          description: Unique device identifier for the user session
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search by car model name
+          schema:
+            type: string
+        - name: makeId
+          in: query
+          description: Filter by make ID
+          schema:
+            type: integer
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+        - name: sortOrder
+          in: query
+          description: Sort order (ascending or descending)
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Cars fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        model:
+                          type: string
+                          example: "Civic"
+                  total:
+                    type: integer
+                    example: 50
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 10
+        '401':
+          description: Unauthorized - Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: No cars found for the given search criteria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  code:
+                    type: string
 
 components:
   securitySchemes:
