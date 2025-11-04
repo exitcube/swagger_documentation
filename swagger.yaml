@@ -404,8 +404,8 @@ paths:
       tags:
         - Vehicle
       summary: Fetch cars with filtering, sorting, and pagination
-      description: >
-        Retrieves a list of active cars with category and make info.
+      description: 
+               Fetches active cars based on filters such as model, make, and category. Requires authorization.
       operationId: getCars
       security:
         - bearerAuth: []
