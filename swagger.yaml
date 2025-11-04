@@ -148,43 +148,10 @@ paths:
                         description: New OTP token to be used for verification
         "400":
           description: Bad request due to invalid device or no active OTP
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: No active OTP request
-                  code:
-                    type: string
-                    example: NO_ACTIVE_OTP
         "429":
           description: OTP request blocked due to cooldown or limit exceeded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: OTP resend cooldown
-                  code:
-                    type: string
-                    example: OTP_RESEND_COOLDOWN
         "500":
           description: Failed to resend OTP due to server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Failed to resend OTP. Please try again later.
-                  code:
-                    type: string
-                    example: OTP_RESEND_FAILED
 
   /user/login/generate-refreshToken:
     post:
@@ -216,55 +183,13 @@ paths:
       responses:
         "200":
           description: Tokens refreshed successfully.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Tokens refreshed
-                  data:
-                    type: object
-                    properties:
-                      accessToken:
-                        type: string
-                        description: Newly generated access token
-                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-                      refreshToken:
-                        type: string
-                        description: Newly generated refresh token
-                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         "400":
           description: Invalid request or token validation failed.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Failed to refresh token. Please login again.
-                  error:
-                    type: object
-                    properties:
-                      code:
-                        type: string
-                        example: INVALID_DEVICE_ID
-                      details:
-                        type: string
-                        example: The device requesting token refresh does not match the device that owns the token.
         "401":
           description: Unauthorized - Token is invalid or expired.
         "500":
           description: Internal Server Error - Token refresh failed unexpectedly.
-      security: []  # No access token required; refresh token only
+      security: []
 
   /user/logout:
     post:
@@ -275,7 +200,7 @@ paths:
         Logs out the currently authenticated user from the specified device.  
         Invalidates all active refresh tokens for that device and removes the device record from the database.
       security:
-        - bearerAuth: []   # Uses Authorization: Bearer <accessToken>
+        - bearerAuth: []
       parameters:
         - in: header
           name: x-device-id
@@ -286,56 +211,18 @@ paths:
       responses:
         "200":
           description: Logged out successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Logged out successfully
-                  data:
-                    type: object
-                    example: {}
         "401":
           description: Unauthorized - Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Access token missing or invalid
         "404":
           description: User or device not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: User or device not found or already logged out
         "500":
           description: Logout failed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Failed to logout. Please try again later.
 
   /user-profile/location-autocomplete:
     get:
       tags:
         - User Profile
       summary: Get location suggestions by search query
-      description: >
-        Fetches autocomplete suggestions for locations based on a search query.
-        Requires authorization and validates that the search term is at least 3 characters long.
       security:
         - bearerAuth: []
       parameters:
@@ -345,60 +232,18 @@ paths:
           schema:
             type: string
             minLength: 3
-          description: Search term for location autocomplete (minimum 3 characters)
         - in: header
           name: x-device-id
           required: true
           schema:
             type: string
-          description: Unique device identifier for the request
       responses:
         "200":
           description: Autocomplete results fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Autocomplete suggestions fetched successfully
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        addressLine1:
-                          type: string
-                        country:
-                          type: string
-                        city:
-                          type: string
-                        state:
-                          type: string
-                        pinCode:
-                          type: string
-                        latitude:
-                          type: string
-                        longitude:
-                          type: string
-                  pagination:
-                    type: object
-                    properties:
-                      total:
-                        type: integer
-                      page:
-                        type: integer
-                      limit:
-                        type: integer
-                      totalPages:
-                        type: integer
         "400":
           description: Invalid search parameter
         "401":
-          description: Unauthorized - Missing or invalid bearer token
+          description: Unauthorized
         "500":
           description: Failed to fetch autocomplete suggestions
 
@@ -407,8 +252,6 @@ paths:
       tags:
         - User Profile
       summary: Get address from latitude and longitude
-      description: >
-        Fetches the address details (like city, state, country, pinCode, etc.) from given latitude and longitude.
       security:
         - bearerAuth: []
       parameters:
@@ -417,62 +260,33 @@ paths:
           required: true
           schema:
             type: string
-          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - lat
-                - lng
+              required: [lat, lng]
               properties:
                 lat:
                   type: string
-                  example: "12.9716"
                 lng:
                   type: string
-                  example: "77.5946"
       responses:
         "201":
           description: Address fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Address fetched successfully
-                  data:
-                    type: object
-                    properties:
-                      location:
-                        type: object
-                        description: Reverse geocoded address details
-                        example:
-                          name: John Doe
-                          addressLine1: MG Road
-                          city: Bangalore
-                          state: Karnataka
-                          country: India
-                          pinCode: 560001
-                          latitude: 12.9716
-                          longitude: 77.5946
         "400":
           description: Invalid latitude or longitude
         "401":
-          description: Unauthorized - Missing or invalid bearer token
+          description: Unauthorized
         "500":
-          description: Failed to fetch address due to server error
+          description: Failed to fetch address
 
   /user-profile/add-address:
     post:
       tags:
         - User Profile
       summary: Add a new address for the user
-      description: Adds a new address for the authenticated user with optional nickname.
       security:
         - bearerAuth: []
       parameters:
@@ -481,7 +295,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique device identifier for the request
       requestBody:
         required: true
         content:
@@ -500,10 +313,8 @@ paths:
               properties:
                 nickName:
                   type: string
-                  description: Optional nickname for the address
                 name:
                   type: string
-                  description: Name associated with the address
                 addressLine1:
                   type: string
                 country:
@@ -521,44 +332,6 @@ paths:
       responses:
         "201":
           description: Address saved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      addressId:
-                        type: number
-                      nickName:
-                        type: string
-                      isDefault:
-                        type: boolean
-                      address:
-                        type: object
-                        properties:
-                          name:
-                            type: string
-                          addressLine1:
-                            type: string
-                          country:
-                            type: string
-                          city:
-                            type: string
-                          state:
-                            type: string
-                          pinCode:
-                            type: string
-                          latitude:
-                            type: number
-                          longitude:
-                            type: number
-                      savedAt:
-                        type: string
-                        format: date-time
         "400":
           description: Validation or bad request
         "401":
@@ -571,7 +344,6 @@ paths:
       tags:
         - User Profile
       summary: Remove an address by ID
-      description: Deactivates an address of the authenticated user using the address ID.
       security:
         - bearerAuth: []
       parameters:
@@ -580,32 +352,14 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique device identifier for the request
         - in: path
           name: id
           required: true
           schema:
             type: integer
-          description: ID of the address to remove
       responses:
         "200":
           description: Address removed successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Address removed successfully
-                  data:
-                    type: object
-                    properties:
-                      updated:
-                        type: number
-                        example: 1
-                      addressId:
-                        type: number
         "400":
           description: Invalid address ID
         "401":
@@ -620,7 +374,6 @@ paths:
       tags:
         - User Profile
       summary: Select an address by ID
-      description: Marks a specific address as selected for the authenticated user.
       security:
         - bearerAuth: []
       parameters:
@@ -629,46 +382,14 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique device identifier for the request
         - in: path
           name: id
           required: true
           schema:
             type: integer
-          description: ID of the address to select
       responses:
         "200":
           description: Address selected successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Address selected successfully
-                  data:
-                    type: object
-                    properties:
-                      selected:
-                        type: number
-                        example: 1
-                      addressId:
-                        type: number
-                        example: 12
-                      address:
-                        type: object
-                        description: Selected address details
-                        example:
-                          id: 12
-                          name: John Doe
-                          addressLine1: MG Road
-                          city: Bangalore
-                          state: Karnataka
-                          country: India
-                          pinCode: 560001
-                          latitude: 12.9716
-                          longitude: 77.5946
         "400":
           description: Invalid address ID
         "401":
@@ -692,45 +413,38 @@ paths:
         - name: x-device-id
           in: header
           required: true
-          description: Unique device identifier for the user session
           schema:
             type: string
         - name: search
           in: query
-          description: Search by car model name
           schema:
             type: string
         - name: makeId
           in: query
-          description: Filter by make ID
           schema:
             type: integer
         - name: categoryId
           in: query
-          description: Filter by category ID
           schema:
             type: integer
         - name: page
           in: query
-          description: Page number for pagination
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
-          description: Number of items per page
           schema:
             type: integer
             default: 10
         - name: sortOrder
           in: query
-          description: Sort order (ascending or descending)
           schema:
             type: string
             enum: [asc, desc]
             default: asc
       responses:
-        '200':
+        "200":
           description: Cars fetched successfully
           content:
             application/json:
@@ -744,48 +458,87 @@ paths:
                       properties:
                         id:
                           type: integer
-                          example: 1
                         model:
                           type: string
-                          example: "Civic"
+                        makeId:
+                          type: integer
+                        makeName:
+                          type: string
+                        categoryId:
+                          type: integer
+                        categoryName:
+                          type: string
                   total:
                     type: integer
-                    example: 50
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "401":
+          description: Unauthorized
+        "404":
+          description: No cars found
+        "500":
+          description: Internal server error
+
+  /cars/car-brands:
+    get:
+      tags:
+        - Vehicle
+      summary: Fetch car brands (makes)
+      description: >
+        Retrieves paginated list of car brands.
+      operationId: getCarsBrandHandler
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Car brands fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: Toyota
+                  total:
+                    type: integer
+                    example: 20
                   page:
                     type: integer
                     example: 1
                   limit:
                     type: integer
                     example: 10
-        '401':
-          description: Unauthorized - Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        '404':
-          description: No cars found for the given search criteria
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  code:
-                    type: string
+        "401":
+          description: Unauthorized
+        "500":
+          description: Failed to fetch car brands
 
 components:
   securitySchemes:
