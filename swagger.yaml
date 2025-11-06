@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Shinr User Management API
   version: "1.0.0"
-  description: API documentation for login and OTP verification
+  description: API documentation for login, OTP verification, user profile & vehicle endpoints.
 
 servers:
   - url: https://shinr-user-mgmt.onrender.com/
@@ -13,253 +13,247 @@ tags:
   - name: User Profile
     description: User profile and location endpoints
   - name: Vehicle
-    description: Vehicle-related endpoints for fetching car details
+    description: Vehicle-related endpoints
 
 paths:
+
+  #######################################################################
+  # AUTH ROUTES
+  #######################################################################
+
   /user/login/otp:
     post:
-      tags:
-        - Auth
+      tags: [Auth]
       summary: Generate OTP for login
-      description: Sends an OTP token for a mobile number. Creates user/device if not exists.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - mobile
+              required: [mobile]
               properties:
                 mobile:
                   type: string
+                  example: "9876543210"
       responses:
         "200":
-          description: OTP generated successfully
+          description: OTP generated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      otpToken:
-                        type: string
-        "400":
-          description: Bad Request
+                $ref: "#/components/schemas/OtpTokenResponse"
         "500":
-          description: OTP generation failed
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /user/login/verify-otp:
     post:
-      tags:
-        - Auth
-      summary: Verify OTP and generate access & refresh tokens
-      description: Verifies the OTP for a user device and returns JWT tokens.
+      tags: [Auth]
+      summary: Verify OTP and generate tokens
       parameters:
         - in: header
           name: x-device-id
           required: true
-          schema:
-            type: string
-          description: The unique ID of the device making the request
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - otpToken
-                - otp
+              required: [otpToken, otp]
               properties:
                 otpToken:
                   type: string
                 otp:
                   type: string
+                  example: "123456"
       responses:
         "200":
-          description: OTP verified successfully and tokens generated
+          description: OTP verified
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      accessToken:
-                        type: string
-                      refreshToken:
-                        type: string
+                $ref: "#/components/schemas/TokensResponse"
         "400":
           description: Invalid OTP or token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
-          description: OTP verification failed
+          description: OTP verification error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /user/login/resend-otp:
     post:
-      tags:
-        - Auth
-      summary: Resend OTP for a user device
-      description: |
-        Resends an OTP for a user device. 
-        Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
+      tags: [Auth]
+      summary: Resend OTP
       parameters:
         - in: header
           name: x-device-id
+          schema: { type: string }
           required: true
-          schema:
-            type: string
-          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - otpToken
+              required: [otpToken]
               properties:
                 otpToken:
                   type: string
-                  description: The token from the previous OTP request
       responses:
         "200":
-          description: OTP resent successfully
+          description: OTP resent
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: OTP resent successfully
-                  data:
-                    type: object
-                    properties:
-                      otpToken:
-                        type: string
-                        description: New OTP token to be used for verification
+                $ref: "#/components/schemas/OtpTokenResponse"
         "400":
-          description: Bad request due to invalid device or no active OTP
+          description: Invalid token or device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
-          description: OTP request blocked due to cooldown or limit exceeded
+          description: Cooldown or limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
-          description: Failed to resend OTP due to server error
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /user/login/generate-refreshToken:
     post:
-      tags:
-        - Auth
-      summary: Refresh Access and Refresh Tokens
-      description: >
-        Refreshes the user's access and refresh tokens using a valid refresh token.  
-        The endpoint validates the refresh token, device identity, and user status before issuing new tokens.
+      tags: [Auth]
+      summary: Refresh tokens
       parameters:
         - in: header
           name: x-device-id
+          schema: { type: string }
           required: true
-          schema:
-            type: string
-          description: The unique ID of the device making the request
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - refreshToken
+              required: [refreshToken]
               properties:
                 refreshToken:
                   type: string
-                  description: The refresh token issued during login.
       responses:
         "200":
-          description: Tokens refreshed successfully.
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokensResponse"
         "400":
-          description: Invalid request or token validation failed.
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
-          description: Unauthorized - Token is invalid or expired.
-        "500":
-          description: Internal Server Error - Token refresh failed unexpectedly.
-      security: []
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /user/logout:
     post:
-      tags:
-        - Auth
-      summary: Logout user and invalidate tokens
-      description: |
-        Logs out the currently authenticated user from the specified device.  
-        Invalidates all active refresh tokens for that device and removes the device record from the database.
-      security:
-        - bearerAuth: []
+      tags: [Auth]
+      summary: Logout user
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
           name: x-device-id
+          schema: { type: string }
           required: true
-          schema:
-            type: string
-          description: Unique device identifier for the user session
       responses:
         "200":
-          description: Logged out successfully
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
         "401":
-          description: Unauthorized - Missing or invalid access token
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: User or device not found
-        "500":
-          description: Logout failed
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  #######################################################################
+  # USER PROFILE ROUTES
+  #######################################################################
 
   /user-profile/location-autocomplete:
     get:
-      tags:
-        - User Profile
-      summary: Get location suggestions by search query
-      security:
-        - bearerAuth: []
+      tags: [User Profile]
+      summary: Location autocomplete
+      security: [{ bearerAuth: [] }]
       parameters:
-        - in: query
-          name: search
-          required: true
-          schema:
-            type: string
-            minLength: 3
         - in: header
           name: x-device-id
+          schema: { type: string }
           required: true
-          schema:
-            type: string
+        - in: query
+          name: search
+          schema: { type: string, minLength: 3 }
+          required: true
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
       responses:
         "200":
-          description: Autocomplete results fetched successfully
+          description: Autocomplete results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAutocompleteResponse"
         "400":
-          description: Invalid search parameter
-        "401":
-          description: Unauthorized
-        "500":
-          description: Failed to fetch autocomplete suggestions
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /user-profile/get-location/reverse-geocode:
     post:
-      tags:
-        - User Profile
-      summary: Get address from latitude and longitude
-      security:
-        - bearerAuth: []
+      tags: [User Profile]
+      summary: Reverse geocode
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
-          name: x-device-id
           required: true
-          schema:
-            type: string
+          name: x-device-id
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -268,136 +262,87 @@ paths:
               type: object
               required: [lat, lng]
               properties:
-                lat:
-                  type: string
-                lng:
-                  type: string
+                lat: { type: string }
+                lng: { type: string }
       responses:
         "201":
-          description: Address fetched successfully
-        "400":
-          description: Invalid latitude or longitude
-        "401":
-          description: Unauthorized
-        "500":
-          description: Failed to fetch address
+          description: Address fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReverseGeocodeResponse"
 
   /user-profile/add-address:
     post:
-      tags:
-        - User Profile
-      summary: Add a new address for the user
-      security:
-        - bearerAuth: []
+      tags: [User Profile]
+      summary: Add user address
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
           name: x-device-id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - addressLine1
-                - country
-                - city
-                - state
-                - pinCode
-                - latitude
-                - longitude
-              properties:
-                nickName:
-                  type: string
-                name:
-                  type: string
-                addressLine1:
-                  type: string
-                country:
-                  type: string
-                city:
-                  type: string
-                state:
-                  type: string
-                pinCode:
-                  type: string
-                latitude:
-                  type: number
-                longitude:
-                  type: number
+              $ref: "#/components/schemas/AddAddressBody"
       responses:
         "201":
-          description: Address saved successfully
-        "400":
-          description: Validation or bad request
-        "401":
-          description: Unauthorized
-        "500":
-          description: Failed to save address
+          description: Address saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddAddressResponse"
 
   /user-profile/remove-address/{id}:
     post:
-      tags:
-        - User Profile
-      summary: Remove an address by ID
-      security:
-        - bearerAuth: []
+      tags: [User Profile]
+      summary: Remove address
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
           name: x-device-id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - in: path
           name: id
+          schema: { type: integer }
           required: true
-          schema:
-            type: integer
       responses:
         "200":
-          description: Address removed successfully
-        "400":
-          description: Invalid address ID
-        "401":
-          description: Unauthorized
-        "404":
-          description: Address not found
-        "500":
-          description: Failed to remove address
+          description: Address removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveAddressResponse"
 
   /user-profile/select-address/{id}:
     post:
-      tags:
-        - User Profile
-      summary: Select an address by ID
-      security:
-        - bearerAuth: []
+      tags: [User Profile]
+      summary: Select default address
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
           name: x-device-id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - in: path
           name: id
+          schema: { type: integer }
           required: true
-          schema:
-            type: integer
       responses:
         "200":
-          description: Address selected successfully
-        "400":
-          description: Invalid address ID
-        "401":
-          description: Unauthorized
-        "404":
-          description: Address not found
-        "500":
-          description: Failed to select address
+          description: Address selected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelectAddressResponse"
+
+  #######################################################################
+  # VEHICLE ROUTES
+  #######################################################################
 
   /car:
     get:
@@ -410,139 +355,287 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: x-device-id
-          in: header
+        - in: header
+          name: x-device-id
           required: true
-          schema:
-            type: string
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: makeId
-          in: query
-          schema:
-            type: integer
-        - name: categoryId
-          in: query
-          schema:
-            type: integer
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 10
-        - name: sortOrder
-          in: query
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: makeId
+          schema: { type: integer }
+        - in: query
+          name: categoryId
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: sortOrder
           schema:
             type: string
             enum: [asc, desc]
             default: asc
       responses:
         "200":
-          description: Cars fetched successfully
+          description: Cars fetched
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        model:
-                          type: string
-                        makeId:
-                          type: integer
-                        makeName:
-                          type: string
-                        categoryId:
-                          type: integer
-                        categoryName:
-                          type: string
-                  total:
-                    type: integer
-                  page:
-                    type: integer
-                  limit:
-                    type: integer
-        "401":
-          description: Unauthorized
-        "404":
-          description: No cars found
-        "500":
-          description: Internal server error
+                $ref: "#/components/schemas/PaginatedCarsResponse"
 
   /cars/car-brands:
     get:
-      tags:
-        - Vehicle
-      summary: Fetch car brands (makes)
-      description: >
-        Retrieves paginated list of car brands.
-      operationId: getCarsBrandHandler
-      security:
-        - bearerAuth: []
+      tags: [Vehicle]
+      summary: Fetch car brands
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: header
           name: x-device-id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - in: query
           name: page
-          schema:
-            type: integer
-            default: 1
+          schema: { type: integer, default: 1 }
         - in: query
           name: limit
-          schema:
-            type: integer
-            default: 10
+          schema: { type: integer, default: 10 }
       responses:
         "200":
-          description: Car brands fetched successfully
+          description: Car brands fetched
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                          example: 1
-                        name:
-                          type: string
-                          example: Toyota
-                  total:
-                    type: integer
-                    example: 20
-                  page:
-                    type: integer
-                    example: 1
-                  limit:
-                    type: integer
-                    example: 10
-        "401":
-          description: Unauthorized
-        "500":
-          description: Failed to fetch car brands
+                $ref: "#/components/schemas/PaginatedCarBrandsResponse"
+
+#######################################################################
+# COMPONENTS
+#######################################################################
 
 components:
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  schemas:
+
+    ##########################################################
+    # COMMON
+    ##########################################################
+
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string }
+        statusCode: { type: integer }
+        publicMessage: { type: string }
+
+    EmptySuccessResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          example: {}
+
+    ##########################################################
+    # AUTH SCHEMAS
+    ##########################################################
+
+    OtpTokenResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: OTP generated
+        data:
+          type: object
+          properties:
+            otpToken:
+              type: string
+              example: sample.jwt.token
+
+    TokensResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: OTP verified and tokens generated
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+
+    ##########################################################
+    # USER PROFILE SCHEMAS
+    ##########################################################
+
+    AutocompleteItem:
+      type: object
+      properties:
+        name: { type: string }
+        addressLine1: { type: string }
+        country: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pinCode: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+
+    PaginatedAutocompleteResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AutocompleteItem"
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    ReverseGeocodeResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            location:
+              type: object
+              properties:
+                formattedAddress: { type: string }
+                lat: { type: number }
+                lng: { type: number }
+                city: { type: string }
+                state: { type: string }
+                country: { type: string }
+                pinCode: { type: string }
+
+    AddAddressBody:
+      type: object
+      required:
+        - name
+        - addressLine1
+        - country
+        - city
+        - state
+        - pinCode
+        - latitude
+        - longitude
+      properties:
+        nickName: { type: string }
+        name: { type: string }
+        addressLine1: { type: string }
+        country: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pinCode: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+
+    AddAddressResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            addressId: { type: integer }
+            nickName: { type: string }
+            isDefault: { type: boolean }
+            address:
+              $ref: "#/components/schemas/AddAddressBody"
+            savedAt:
+              type: string
+              format: date-time
+
+    RemoveAddressResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            updated: { type: integer }
+            addressId: { type: integer }
+
+    SelectAddressResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            selected: { type: integer }
+            addressId: { type: integer }
+            address:
+              type: object
+              properties:
+                id: { type: integer }
+                userId: { type: integer }
+                nickName: { type: string }
+                isDefault: { type: boolean }
+                isActive: { type: boolean }
+                name: { type: string }
+                addressLine1: { type: string }
+                country: { type: string }
+                city: { type: string }
+                state: { type: string }
+                pinCode: { type: string }
+                latitude: { type: number }
+                longitude: { type: number }
+                createdAt:
+                  type: string
+                  format: date-time
+
+    ##########################################################
+    # VEHICLE SCHEMAS
+    ##########################################################
+
+    CarItem:
+      type: object
+      properties:
+        id: { type: integer }
+        model: { type: string }
+        makeId: { type: integer }
+        makeName: { type: string }
+        categoryId: { type: integer }
+        categoryName: { type: string }
+
+    PaginatedCarsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarItem"
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    CarBrandItem:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    PaginatedCarBrandsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarBrandItem"
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
