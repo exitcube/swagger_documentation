@@ -346,9 +346,14 @@ paths:
 
   /car:
     get:
-      tags: [Vehicle]
-      summary: Fetch cars
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Vehicle
+      summary: Fetch cars with filtering, sorting, and pagination
+      description: 
+               Fetches active cars based on filters such as model, make, and category. Requires authorization.
+      operationId: getCars
+      security:
+        - bearerAuth: []
       parameters:
         - in: header
           name: x-device-id
