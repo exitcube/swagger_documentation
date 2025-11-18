@@ -18,6 +18,8 @@ tags:
     description: Service management endpoints
   - name: Banner
     description: Banner management endpoints
+  - name: Admin
+    description: Admin authentication and management endpoints
 
 
 paths:
@@ -686,6 +688,127 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         "500":
           $ref: '#/components/responses/InternalServerError'
+          
+  /admin/login:
+    post:
+      tags:
+        - Admin
+      summary: Admin Login
+      description: Authenticates an admin user and returns access & refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userName
+                - password
+              properties:
+                userName:
+                  type: string
+                  example: "shayizz400"
+                password:
+                  type: string
+                  example: "shayiz123"
+  
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+  
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+  
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+  
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /service/update-service/{id}:
+    post:
+      tags:
+        - Service
+      summary: Update a service
+      description: Updates an existing service. Partial update supported.
+      security:
+        - bearerAuth: []
+  
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+  
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Service ID
+  
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                displayName:
+                  type: string
+                imageId:
+                  type: string
+                targetValue:
+                  type: string
+  
+      responses:
+        "200":
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Service Updated successfully
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        example: 1
+                      serviceId:
+                        type: integer
+                        example: 14
+  
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+  
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+  
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
 
 
 
