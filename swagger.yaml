@@ -20,6 +20,8 @@ tags:
     description: Banner management endpoints
   - name: Admin
     description: Admin authentication and management endpoints
+  - name: Profile
+    description: Profile update and user-related operations
 
 
 paths:
@@ -809,6 +811,55 @@ paths:
         "500":
           $ref: '#/components/responses/InternalServerError'
 
+  /user-profile/update-profile:
+    post:
+      tags:
+        - Profile
+      summary: Update user profile details
+      description: |
+        Updates the authenticated user's profile information including name, email, and profile picture.
+        Accepts multipart/form-data for uploading a profile picture.
+        The profile picture must be in PNG, JPG, or JPEG format and less than 2MB in size.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique ID of the user's device
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Adarsh Vinod"
+                email:
+                  type: string
+                  example: "adarsh@gmail.com"
+                profilePic:
+                  type: string
+                  format: binary
+                  description: "Profile picture file (PNG/JPG/JPEG). Max size: 2MB"
+      responses:
+        "200":
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessUpdateProfileResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 
 
 
@@ -823,6 +874,23 @@ components:
       bearerFormat: JWT
 
   schemas:
+
+    SuccessUpdateProfileResponse:
+      type: object
+      properties:
+
+        data:
+          type: object
+          properties:
+            updated:
+              type: integer
+              example: 1
+            userId:
+              type: integer
+              example: 12
+        message:
+          type: string
+          example: Profile updated successfully
   
     CreateBannerRequest:
       oneOf:
