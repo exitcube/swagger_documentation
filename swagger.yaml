@@ -547,6 +547,124 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+                
+  /banner/get-vendors:
+    get:
+      tags:
+        - Banner
+      summary: Get vendor list with search and pagination
+      description: Fetches the list of vendors for banner creation, with optional search and pagination.
+      security:
+        - bearerAuth: []     # Admin access token required
+      parameters:
+
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Optional search term to filter vendors by name.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of vendors per page.
+
+      responses:
+        "200":
+          description: Vendors fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessVendorListResponse"
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/get-categories:
+    get:
+      tags:
+        - Banner
+      summary: Get banner categories with search and pagination
+      description: Returns all available banner categories with optional search and pagination.
+      security:
+        - bearerAuth: []    # Admin bearer token required
+      parameters:
+
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Optional search term for filtering categories by display name.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of categories per page.
+
+      responses:
+        "200":
+          description: Categories fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessCategoryListResponse"
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/get-status:
+    get:
+      tags:
+        - Banner
+      summary: Get banner status and review status
+      description: Returns the list of banner statuses and review statuses.
+      security:
+        - bearerAuth: []   # Admin access token required
+  
+  
+      responses:
+        "200":
+          description: Status and review status list fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessBannerStatusResponse"
+  
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  
+        "500":
+          $ref: "#/components/responses/InternalServerError"
           
   /admin/login:
     post:
@@ -668,7 +786,7 @@ paths:
         "500":
           $ref: '#/components/responses/InternalServerError'
 
-  /user-profile/update-profile:
+  /profile/update-profile:
     post:
       tags:
         - Profile
@@ -731,6 +849,102 @@ components:
       bearerFormat: JWT
 
   schemas:
+  
+    SuccessBannerStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Status and review list fetched successfully
+        data:
+          type: object
+          properties:
+            statusList:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: Active
+                  value:
+                    type: string
+                    example: ACTIVE
+    
+            reviewStatusList:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: Approved
+                  value:
+                    type: string
+                    example: APPROVED
+  
+    SuccessCategoryListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Categories fetched successfully
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: "Home Page"
+                  value:
+                    type: string
+                    example: "HOME_PAGE"
+            total:
+              type: integer
+              example: 8
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+  
+    SuccessVendorListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Vendors fetched successfully
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 12
+                  name:
+                    type: string
+                    example: "ABC Car Wash"
+            total:
+              type: integer
+              example: 40
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
 
     SuccessUpdateProfileResponse:
       type: object
