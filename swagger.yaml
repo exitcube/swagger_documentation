@@ -872,6 +872,152 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
 
+  /banner/getTargetAudience:
+    get:
+      tags:
+        - Banner
+      summary: Get Target Audience Options
+      description: Returns the list of target audience categories and their items used in banner configuration.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Target audience options fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Target audience options fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category:
+                          type: string
+                          example: MANUAL
+                        displayText:
+                          type: string
+                          example: Manual
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              displayText:
+                                type: string
+                                example: Selected Customers
+                              value:
+                                type: string
+                                example: SELECTED_CUST
+                              isFile:
+                                type: boolean
+                                example: true
+  
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/update-banner-category:
+    put:
+      tags:
+        - Banner
+      summary: Update Banner Category Display Text
+      description: Updates the displayText of a specific banner category.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 3
+                updatingText:
+                  type: string
+                  example: "New Category Name"
+              required:
+                - id
+                - updatingText
+      responses:
+        "200":
+          description: Banner category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: banner Category updated Succesfully
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        example: 1
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/delete-banner-category:
+    delete:
+      tags:
+        - Banner
+      summary: Delete banner category
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Category ID to delete
+      responses:
+        "200":
+          description: Banner category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Banner category deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: integer
+                        example: 1
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 
 
@@ -1228,6 +1374,16 @@ components:
         statusCode: { type: integer }
 
   responses:
+  
+  
+    DeleteBannerCategorySuccess:
+      description: Banner category deleted successfully
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeleteBannerCategorySuccessSchema"
+  
+  
     BadRequestError:
       description: Bad Request
       content:
