@@ -1162,7 +1162,7 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 
   /banner/update-banner:
-    post:
+    put:
       tags:
         - Banner
       summary: Update banner details
