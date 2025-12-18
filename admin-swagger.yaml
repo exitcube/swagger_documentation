@@ -8,10 +8,6 @@ servers:
   - url: https://shinr-user-mgmt.onrender.com/
 
 tags:
-  - name: Auth
-    description: Authentication endpoints
-  - name: User Profile
-    description: User profile and location endpoints
   - name: Vehicle
     description: Vehicle-related endpoints for fetching car details
   - name: Service
@@ -20,410 +16,10 @@ tags:
     description: Banner management endpoints
   - name: Admin
     description: Admin authentication and management endpoints
-  - name: Profile
-    description: Profile update and user-related operations
 
 
 paths:
 
-  /user/login/otp:
-    post:
-      tags:
-        - Auth
-      summary: Generate OTP for login
-      description: Sends an OTP token for a mobile number. Creates user/device if not exists.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - mobile
-              properties:
-                mobile:
-                  type: string
-      responses:
-        "200":
-          description: OTP generated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessOtpTokenResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user/login/verify-otp:
-    post:
-      tags:
-        - Auth
-      summary: Verify OTP and generate access & refresh tokens
-      description: Verifies the OTP for a user device and returns JWT tokens.
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-          description: The unique ID of the device making the request
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - otpToken
-                - otp
-              properties:
-                otpToken:
-                  type: string
-                otp:
-                  type: string
-      responses:
-        "200":
-          description: OTP verified successfully and tokens generated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessAuthTokensResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user/login/resend-otp:
-    post:
-      tags:
-        - Auth
-      summary: Resend OTP for a user device
-      description: |
-        Resends an OTP for a user device. 
-        Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - otpToken
-              properties:
-                otpToken:
-                  type: string
-      responses:
-        "200":
-          description: OTP resent successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessOtpTokenResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "429":
-          $ref: '#/components/responses/TooManyRequestsError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user/login/generate-refreshToken:
-    post:
-      tags:
-        - Auth
-      summary: Refresh Access and Refresh Tokens
-      description: >
-        Refreshes the user's access and refresh tokens using a valid refresh token.
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refreshToken
-              properties:
-                refreshToken:
-                  type: string
-      responses:
-        "200":
-          description: Tokens refreshed successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessAuthTokensResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-      security: []
-
-  /user/logout:
-    post:
-      tags:
-        - Auth
-      summary: Logout user and invalidate tokens
-      description: |
-        Logs out the currently authenticated user from the specified device.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Logged out successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessMessageOnly'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "404":
-          $ref: '#/components/responses/NotFoundError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user-profile/location-autocomplete:
-    get:
-      tags:
-        - User Profile
-      summary: Get location suggestions by search query
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: search
-          required: true
-          schema:
-            type: string
-            minLength: 3
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Autocomplete results fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessLocationAutocompleteResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user-profile/get-location/reverse-geocode:
-    post:
-      tags:
-        - User Profile
-      summary: Get address from latitude and longitude
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [lat, lng]
-              properties:
-                lat:
-                  type: string
-                lng:
-                  type: string
-      responses:
-        "201":
-          description: Address fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessAddressResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user-profile/add-address:
-    post:
-      tags:
-        - User Profile
-      summary: Add a new address for the user
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - name
-                - addressLine1
-                - country
-                - city
-                - state
-                - pinCode
-                - latitude
-                - longitude
-              properties:
-                nickName: { type: string }
-                name: { type: string }
-                addressLine1: { type: string }
-                country: { type: string }
-                city: { type: string }
-                state: { type: string }
-                pinCode: { type: string }
-                latitude: { type: number }
-                longitude: { type: number }
-      responses:
-        "201":
-          description: Address saved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessAddressResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user-profile/remove-address/{id}:
-    post:
-      tags:
-        - User Profile
-      summary: Remove an address by ID
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Address removed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessMessageOnly'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "404":
-          $ref: '#/components/responses/NotFoundError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /user-profile/select-address/{id}:
-    post:
-      tags:
-        - User Profile
-      summary: Select an address by ID
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Address selected successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessSelectedAddressResponse'
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "404":
-          $ref: '#/components/responses/NotFoundError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  ####################################################
-  # NEW ROUTE ADDED
-  ####################################################
-
-  /user-profile/addresses:
-    get:
-      tags:
-        - User Profile
-      summary: Get list of user's saved addresses
-      description: Returns all active addresses of the authenticated user.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User addresses fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessUserAddressesResponse'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  ####################################################
 
   /car:
     get:
@@ -782,91 +378,6 @@ paths:
   
         "404":
           $ref: '#/components/responses/NotFoundError'
-  
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /profile/update-profile:
-    post:
-      tags:
-        - Profile
-      summary: Update user profile details
-      description: |
-        Updates the authenticated user's profile information including name, email, and profile picture.
-        Accepts multipart/form-data for uploading a profile picture.
-        The profile picture must be in PNG, JPG, or JPEG format and less than 2MB in size.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-          description: Unique ID of the user's device
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  example: "Adarsh Vinod"
-                email:
-                  type: string
-                  example: "adarsh@gmail.com"
-                profilePic:
-                  type: string
-                  format: binary
-                  description: "Profile picture file (PNG/JPG/JPEG). Max size: 2MB"
-      responses:
-        "200":
-          description: Profile updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessUpdateProfileResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-          
-  /user/dashboard:
-    get:
-      tags:
-        - Profile
-      summary: Get logged-in user dashboard details
-      description: Returns profile information and default address of the logged-in user.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-          description: Device ID of the user
-      responses:
-        "200":
-          description: User details fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessUserDashboardResponse'
-  
-        "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundUserResponse'
-  
-        "400":
-          $ref: '#/components/responses/BadRequestError'
   
         "500":
           $ref: '#/components/responses/InternalServerError'
@@ -1625,11 +1136,174 @@ paths:
         "500":
           description: Server error
 
+  /banner/{id}:
+    get:
+      tags:
+        - Banner
+      summary: Get details of a single banner
+      description: Fetches a single banner by its ID, including vendor, category, and target audience details.
+      security:
+        - bearerAuth: []   # Admin access required
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID of the banner to fetch
+      responses:
+        "200":
+          description: Banner fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "single Banner fetched Successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+                      bannerImageUrl:
+                        type: string
+                        example: "https://cdn.example.com/banner123.png"
+                      title:
+                        type: string
+                        example: "Winter Festival Offer"
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 3
+                          displayText:
+                            type: string
+                            example: "Promotions"
+                      owner:
+                        type: string
+                        example: "SHINR"
+                      vendor:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 12
+                          name:
+                            type: string
+                            example: "ABC Motors"
+                      targetValue:
+                        type: string
+                        example: "ALL_USERS"
+                      priority:
+                        type: integer
+                        example: 1
+                      startTime:
+                        type: string
+                        format: date-time
+                        example: "2025-12-04T00:00:00+05:30"
+                      endTime:
+                        type: string
+                        format: date-time
+                        example: "2025-12-10T23:59:59+05:30"
+                      homePageView:
+                        type: boolean
+                        example: true
+                      reviewStatus:
+                        type: string
+                        example: "PENDING"
+                      targetAudienceDetails:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            displayText:
+                              type: string
+                              example: "Selected Customers"
+                            category:
+                              type: string
+                              example: "MANUAL"
+                            value:
+                              type: string
+                              example: "SELECTED_CUST"
+                            isFile:
+                              type: boolean
+                              example: true
+                            fileFieldName:
+                              type: string
+                              example: "customer_list.csv"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Banner not found
+        "500":
+          description: Failed to fetch banner
 
-
-
-
-
+  /delete-banner/:id':
+    delete:
+      tags:
+        - Banner
+      summary: Delete a banner
+      description: Soft deletes a banner and its related audience and target configurations.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Banner ID to delete
+      responses:
+        "200":
+          description: Banner deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Banner Deleted Successfully"
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: integer
+                        example: 1
+        "400":
+          description: Invalid banner id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Invalid banner id"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Banner not found
+        "500":
+          description: Failed to delete banner
 
 components:
   securitySchemes:
