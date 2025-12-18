@@ -1,0 +1,2022 @@
+openapi: 3.0.0
+info:
+  title: Shinr User Management API
+  version: "1.0.0"
+  description: API documentation for login and OTP verification
+
+servers:
+  - url: https://shinr-user-mgmt.onrender.com/
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: User Profile
+    description: User profile and location endpoints
+  - name: Vehicle
+    description: Vehicle-related endpoints for fetching car details
+  - name: Service
+    description: Service management endpoints
+  - name: Banner
+    description: Banner management endpoints
+  - name: Admin
+    description: Admin authentication and management endpoints
+  - name: Profile
+    description: Profile update and user-related operations
+
+
+paths:
+
+  /user/login/otp:
+    post:
+      tags:
+        - Auth
+      summary: Generate OTP for login
+      description: Sends an OTP token for a mobile number. Creates user/device if not exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mobile
+              properties:
+                mobile:
+                  type: string
+      responses:
+        "200":
+          description: OTP generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOtpTokenResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user/login/verify-otp:
+    post:
+      tags:
+        - Auth
+      summary: Verify OTP and generate access & refresh tokens
+      description: Verifies the OTP for a user device and returns JWT tokens.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: The unique ID of the device making the request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpToken
+                - otp
+              properties:
+                otpToken:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        "200":
+          description: OTP verified successfully and tokens generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthTokensResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user/login/resend-otp:
+    post:
+      tags:
+        - Auth
+      summary: Resend OTP for a user device
+      description: |
+        Resends an OTP for a user device. 
+        Validates the device, checks request count and cooldown (45 seconds), and generates a new OTP and token.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpToken
+              properties:
+                otpToken:
+                  type: string
+      responses:
+        "200":
+          description: OTP resent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOtpTokenResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "429":
+          $ref: '#/components/responses/TooManyRequestsError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user/login/generate-refreshToken:
+    post:
+      tags:
+        - Auth
+      summary: Refresh Access and Refresh Tokens
+      description: >
+        Refreshes the user's access and refresh tokens using a valid refresh token.
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Tokens refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthTokensResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+      security: []
+
+  /user/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout user and invalidate tokens
+      description: |
+        Logs out the currently authenticated user from the specified device.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageOnly'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-profile/location-autocomplete:
+    get:
+      tags:
+        - User Profile
+      summary: Get location suggestions by search query
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          required: true
+          schema:
+            type: string
+            minLength: 3
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Autocomplete results fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessLocationAutocompleteResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-profile/get-location/reverse-geocode:
+    post:
+      tags:
+        - User Profile
+      summary: Get address from latitude and longitude
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng]
+              properties:
+                lat:
+                  type: string
+                lng:
+                  type: string
+      responses:
+        "201":
+          description: Address fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAddressResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-profile/add-address:
+    post:
+      tags:
+        - User Profile
+      summary: Add a new address for the user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - addressLine1
+                - country
+                - city
+                - state
+                - pinCode
+                - latitude
+                - longitude
+              properties:
+                nickName: { type: string }
+                name: { type: string }
+                addressLine1: { type: string }
+                country: { type: string }
+                city: { type: string }
+                state: { type: string }
+                pinCode: { type: string }
+                latitude: { type: number }
+                longitude: { type: number }
+      responses:
+        "201":
+          description: Address saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAddressResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-profile/remove-address/{id}:
+    post:
+      tags:
+        - User Profile
+      summary: Remove an address by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Address removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageOnly'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-profile/select-address/{id}:
+    post:
+      tags:
+        - User Profile
+      summary: Select an address by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Address selected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessSelectedAddressResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  ####################################################
+  # NEW ROUTE ADDED
+  ####################################################
+
+  /user-profile/addresses:
+    get:
+      tags:
+        - User Profile
+      summary: Get list of user's saved addresses
+      description: Returns all active addresses of the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User addresses fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessUserAddressesResponse'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  ####################################################
+
+  /car:
+    get:
+      tags:
+        - Vehicle
+      summary: Fetch cars with filtering, sorting, and pagination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: x-device-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: makeId
+          in: query
+          schema: { type: integer }
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Cars fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCarsResponse'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /cars/car-brands:
+    get:
+      tags:
+        - Vehicle
+      summary: Fetch car brands (makes)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: Car brands fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCarBrandsResponse'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /service/add-service:
+    post:
+      tags:
+        - Service
+      summary: Add a new service
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddServiceRequest"
+      responses:
+        "201":
+          description: Service added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessAddServiceResponse"
+        "400":
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to add service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+                
+  /banner/get-vendors:
+    get:
+      tags:
+        - Banner
+      summary: Get vendor list with search and pagination
+      description: Fetches the list of vendors for banner creation, with optional search and pagination.
+      security:
+        - bearerAuth: []     # Admin access token required
+      parameters:
+
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Optional search term to filter vendors by name.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of vendors per page.
+
+      responses:
+        "200":
+          description: Vendors fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessVendorListResponse"
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/get-categories:
+    get:
+      tags:
+        - Banner
+      summary: Get banner categories with search and pagination
+      description: Returns all available banner categories with optional search and pagination.
+      security:
+        - bearerAuth: []    # Admin bearer token required
+      parameters:
+
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Optional search term for filtering categories by display name.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of categories per page.
+
+      responses:
+        "200":
+          description: Categories fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessCategoryListResponse"
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/get-status:
+    get:
+      tags:
+        - Banner
+      summary: Get banner status and review status
+      description: Returns the list of banner statuses and review statuses.
+      security:
+        - bearerAuth: []   # Admin access token required
+  
+  
+      responses:
+        "200":
+          description: Status and review status list fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessBannerStatusResponse"
+  
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /admin/login:
+    post:
+      tags:
+        - Admin
+      summary: Admin Login
+      description: Authenticates an admin user and returns access & refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userName
+                - password
+              properties:
+                userName:
+                  type: string
+                  example: "shayizz400"
+                password:
+                  type: string
+                  example: "shayiz123"
+  
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+  
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+  
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+  
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /service/update-service/{id}:
+    post:
+      tags:
+        - Service
+      summary: Update a service
+      description: Updates an existing service. Partial update supported.
+      security:
+        - bearerAuth: []
+  
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+  
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Service ID
+  
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                displayName:
+                  type: string
+                imageId:
+                  type: string
+                targetValue:
+                  type: string
+  
+      responses:
+        "200":
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Service Updated successfully
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        example: 1
+                      serviceId:
+                        type: integer
+                        example: 14
+  
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+  
+        "404":
+          $ref: '#/components/responses/NotFoundError'
+  
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /profile/update-profile:
+    post:
+      tags:
+        - Profile
+      summary: Update user profile details
+      description: |
+        Updates the authenticated user's profile information including name, email, and profile picture.
+        Accepts multipart/form-data for uploading a profile picture.
+        The profile picture must be in PNG, JPG, or JPEG format and less than 2MB in size.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique ID of the user's device
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Adarsh Vinod"
+                email:
+                  type: string
+                  example: "adarsh@gmail.com"
+                profilePic:
+                  type: string
+                  format: binary
+                  description: "Profile picture file (PNG/JPG/JPEG). Max size: 2MB"
+      responses:
+        "200":
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessUpdateProfileResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /user/dashboard:
+    get:
+      tags:
+        - Profile
+      summary: Get logged-in user dashboard details
+      description: Returns profile information and default address of the logged-in user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID of the user
+      responses:
+        "200":
+          description: User details fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessUserDashboardResponse'
+  
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundUserResponse'
+  
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+  
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /banner/getTargetAudience:
+    get:
+      tags:
+        - Banner
+      summary: Get Target Audience Options
+      description: Returns the list of target audience categories and their items used in banner configuration.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Target audience options fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Target audience options fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category:
+                          type: string
+                          example: MANUAL
+                        displayText:
+                          type: string
+                          example: Manual
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              displayText:
+                                type: string
+                                example: Selected Customers
+                              value:
+                                type: string
+                                example: SELECTED_CUST
+                              isFile:
+                                type: boolean
+                                example: true
+  
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/update-banner-category:
+    put:
+      tags:
+        - Banner
+      summary: Update Banner Category Display Text
+      description: Updates the displayText of a specific banner category.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 3
+                updatingText:
+                  type: string
+                  example: "New Category Name"
+              required:
+                - id
+                - updatingText
+      responses:
+        "200":
+          description: Banner category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: banner Category updated Succesfully
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        example: 1
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+          
+  /banner/delete-banner-category:
+    delete:
+      tags:
+        - Banner
+      summary: Delete banner category
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Category ID to delete
+      responses:
+        "200":
+          description: Banner category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Banner category deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: integer
+                        example: 1
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  /banner/create-banner:
+    post:
+      tags:
+        - Banner
+      summary: Create a new banner
+      description: |
+        Creates a new banner with image upload, category, vendor mapping, schedule time, priority, and audience targeting.
+
+        **Image Requirements:**
+        - Must be exactly **272 × 230 pixels**
+        - Allowed types: **PNG, JPG**
+        - Max size: **5MB**
+
+      security:
+        - bearerAuth: []   # Admin access token required
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+                - categoryId
+                - owner
+                - priority
+                - bannerImage
+              properties:
+                title:
+                  type: string
+                  example: "Winter Festival Offer"
+
+                categoryId:
+                  type: integer
+                  example: 3
+
+                owner:
+                  type: string
+                  example: "SHINR"
+
+                vendorId:
+                  type: integer
+                  nullable: true
+                  example: 12
+                  description: Vendor ID if owner = "VENDOR"
+
+                targetAudienceId:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 3]
+                  description: Audience config IDs (non-file-based only stored)
+
+                targetValue:
+                  type: string
+                  example: "ALL_USERS"
+
+                priority:
+                  type: integer
+                  example: 1
+                  description: Display order of the banner
+
+                startTime:
+                  type: string
+                  format: date-time
+                  example: "2025-01-10T00:00:00+05:30"
+                  description: Start schedule. Defaults to now.
+
+                endTime:
+                  type: string
+                  format: date-time
+                  example: "2025-01-20T23:59:59+05:30"
+                  description: End schedule. Defaults to **2099-01-01**.
+
+                homePageView:
+                  type: boolean
+                  example: true
+                  description: Whether banner is shown on home page.
+
+                bannerImage:
+                  type: string
+                  format: binary
+                  description: |
+                    Banner image file.
+                    Must be **PNG/JPG**, max **5MB**, must be **272x230 px**.
+
+      responses:
+        "200":
+          description: Banner created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Banner Created Successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 101
+                      title:
+                        type: string
+                        example: "Winter Festival Offer"
+                      categoryId:
+                        type: integer
+                        example: 3
+                      owner:
+                        type: string
+                        example: "SHINR"
+                      vendorId:
+                        type: integer
+                        example: 12
+                      priority:
+                        type: integer
+                        example: 1
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+                      status:
+                        type: string
+                        example: "DRAFT"
+                      reviewStatus:
+                        type: string
+                        example: "PENDING"
+
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /banner/update-banner:
+    put:
+      tags:
+        - Banner
+      summary: Update banner details
+      description: |
+        Updates an existing banner.
+
+        - **bannerId** and **targetAudienceId** are required.
+        - If `owner = VENDOR`, then **vendorId is required**.
+        - If `owner = SHINR`, **vendorId must not be sent**.
+        - `targetAudienceId` must be an array with at least one item.
+        - Dates (`startTime`, `endTime`) must be valid date with Timezone.
+
+        ### Image Rules (if uploading a new banner image)
+        - Supported formats: PNG, JPG
+        - Required size: **272 × 230 px**
+        - Max size: **5 MB**
+
+        This endpoint accepts **multipart/form-data**.
+
+      security:
+        - bearerAuth: []   # Admin access token required
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                bannerId:
+                  type: string
+                  example: "12"
+                title:
+                  type: string
+                  example: "Diwali Offer"
+                categoryId:
+                  type: number
+                  example: 3
+                owner:
+                  type: string
+                  example: "Hero Motors"
+                vendorId:
+                  type: number
+                  example: 5
+                targetAudienceId:
+                  type: array
+                  items:
+                    type: number
+                  example: [1, 2, 5]
+                targetValue:
+                  type: string
+                  example: "MAHARASHTRA"
+                priority:
+                  type: number
+                  example: 1
+                startTime:
+                  type: string
+                  format: date-time
+                  example: "2025-12-04T00:00:00+05:30"
+                endTime:
+                  type: string
+                  format: date-time
+                  example: "2025-12-10T23:59:59+05:30"
+                homePageView:
+                  type: boolean
+                  example: true
+                bannerImage:
+                  type: string
+                  format: binary
+                  description: Must be 272x230 PNG/JPG, max 5MB.
+      responses:
+        "200":
+          description: Banner updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Banner updated successfully"
+                  data:
+                    updated: true
+
+        "400":
+          description: Invalid payload or constraints failed
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid banner id"
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to update banners"
+
+  /banner/approve-banner:
+    post:
+      tags:
+        - Banner
+      summary: Approve or reject a banner
+      description: |
+        Allows an admin to approve or reject a banner.
+
+        - `bannerId` and `action` are required.
+        - `action` must be either **APPROVE** or **REJECT**.
+        - If `action = REJECT`, backend expects `rejectReason`.
+        - Admin cannot approve/reject their own banner.
+        - Banner must be in **PENDING** state and **DRAFT** status.
+
+      security:
+        - bearerAuth: []   # Admin access token required
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bannerId:
+                  type: number
+                  example: 12
+                  description: "Required. Must be a valid number."
+                action:
+                  type: string
+                  enum: ["APPROVE", "REJECT"]
+                  example: "APPROVE"
+                  description: "Required. Must be either APPROVE or REJECT."
+                rejectReason:
+                  type: string
+                  example: "Incorrect information in banner."
+                  nullable: true
+                  description: "Required only when action = REJECT."
+
+              required:
+                - bannerId
+                - action
+
+      responses:
+        "200":
+          description: Banner approval or rejection completed.
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Banner Approved"
+                data:
+                  approved: true
+
+        "400":
+          description: Validation or business rule failure.
+          content:
+            application/json:
+              example:
+                success: false
+                message: "bannerId is required"
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Failed to Approve banners"
+
+  /banner/getBanners:
+    get:
+      tags:
+        - Banner
+      summary: Get list of banners with filters
+      description: |
+        Fetches paginated list of banners with optional filters.
+
+        - `search` can match: banner title, vendor name, vendor code, or category display text.
+        - `status`, `reviewStatus`, `categoryId`, and `vendorId` are optional exact-match filters.
+        - `startTime` and `endTime` accept **ISO date-time with timezone (timestamptz)**.
+        - Supports pagination (`page`, `limit`) and sorting via `sortOrder`.
+
+      security:
+        - bearerAuth: []   # Admin access token required
+
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 3
+          example: "offer"
+          description: Search by title, vendor name/code, or category text.
+
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: ["ACTIVE", "DRAFT", "EXPIRED"]
+          example: "ACTIVE"
+          description: Filter by banner status.
+
+        - in: query
+          name: reviewStatus
+          schema:
+            type: string
+            enum: ["PENDING", "APPROVED", "REJECTED"]
+          example: "APPROVED"
+          description: Filter by review status.
+
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+          example: "cat_12"
+
+        - in: query
+          name: vendorId
+          schema:
+            type: string
+          example: "vendor_44"
+
+        - in: query
+          name: startTime
+          schema:
+            type: string
+            format: date-time
+          example: "2025-12-04T00:00:00+05:30"
+          description: "Start of date range (timestamptz)."
+
+        - in: query
+          name: endTime
+          schema:
+            type: string
+            format: date-time
+          example: "2025-12-10T23:59:59+05:30"
+          description: "End of date range (timestamptz)."
+
+        - in: query
+          name: page
+          schema:
+            type: number
+            default: 1
+          example: 1
+
+        - in: query
+          name: limit
+          schema:
+            type: number
+            default: 10
+          example: 10
+
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: ["ASC", "DESC"]
+            default: "ASC"
+          example: "ASC"
+
+      responses:
+        "200":
+          description: Paginated list of banners
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Fetched successfully"
+                pagination:
+                  total: 25
+                  page: 1
+                  limit: 10
+                data:
+                  - id: 12
+                    title: "New Year Offer"
+                    category: "Promotions"
+                    reviewStatus: "APPROVED"
+                    status: "ACTIVE"
+                    displaySequence: 1
+                    startTime: "2025-12-04T00:00:00.000Z"
+                    endTime: "2025-12-10T23:59:59.000Z"
+                    vendor: "ABC Motors"
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Failed to fetch banners"
+
+  /admin/list-adminusers:
+    get:
+      summary: Get list of admin roles
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            example: 1
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            example: 10
+
+      responses:
+        "200":
+          description: Admin roles fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Admin roles fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            displayName:
+                              type: string
+                              example: Super Admin
+                            value:
+                              type: string
+                              example: SUPER_ADMIN
+                      total:
+                        type: integer
+                        example: 3
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+
+        "400":
+          description: Failed to fetch admin roles.
+        "401":
+          description: Unauthorized access.
+
+
+  /admin/createadminuser:
+    post:
+      summary: Create a new admin user
+      description: |
+        Creates a new admin user. **Access restricted:** Only adminusers with the `SUPER_ADMIN` role can perform this action.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userName
+                - newRole
+                - email
+                - joiningDate
+              properties:
+                userName:
+                  type: string
+                  minLength: 3
+                  example: "Rohit Sharma"
+                newRole:
+                  type: string
+                  description: Must be one of the allowed admin roles. Only SUPER_ADMIN can assign roles.
+                  enum:
+                    - ADMIN
+                    - SUPER_ADMIN
+                    - EMPLOYEE
+                  example: "ADMIN"
+                email:
+                  type: string
+                  format: email
+                  example: "rohit.sharma@shinr.in"
+                joiningDate:
+                  type: string
+                  format: date
+                  description: ISO date format
+                  example: "2025-02-10"
+
+      responses:
+        "200":
+          description: Admin user created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Admin user created successfully
+                  data:
+                    type: object
+                    properties:
+                      empCode:
+                        type: string
+                        example: "SHINR15210205"
+
+        "400":
+          description: Validation failed or invalid role
+        "403":
+          description: Forbidden - Only SUPER_ADMIN can access this resource
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: You are not allowed to create admin users
+                  code:
+                    type: string
+                    example: FORBIDDEN
+                  statusCode:
+                    type: number
+                    example: 403
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-12-10T10:30:00.000Z"
+                  path:
+                    type: string
+                    example: /admin/create-admin-user
+                  method:
+                    type: string
+                    example: POST
+
+        "500":
+          description: Server error
+
+
+
+
+
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+  
+    SuccessUserDashboardResponse:
+      type: object
+      properties:
+        status:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: User details fetched successfully
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+              example: John Doe
+            mobileNumber:
+              type: string
+              example: "9876543210"
+            email:
+              type: string
+              example: johndoe@gmail.com
+            profilePic:
+              type: string
+              nullable: true
+              example: https://cdn.app.com/files/profilepic.jpg
+            defaultLocation:
+              type: object
+              nullable: true
+              properties:
+                name:
+                  type: string
+                  example: Home
+                addressLine1:
+                  type: string
+                  example: 123 MG Road, Bangalore
+                  
+    NotFoundUserResponse:
+      type: object
+      properties:
+        status:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: User not found
+  
+    SuccessBannerStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Status and review list fetched successfully
+        data:
+          type: object
+          properties:
+            statusList:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: Active
+                  value:
+                    type: string
+                    example: ACTIVE
+    
+            reviewStatusList:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: Approved
+                  value:
+                    type: string
+                    example: APPROVED
+  
+    SuccessCategoryListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Categories fetched successfully
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: "Home Page"
+                  value:
+                    type: string
+                    example: "HOME_PAGE"
+            total:
+              type: integer
+              example: 8
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+  
+    SuccessVendorListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Vendors fetched successfully
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 12
+                  name:
+                    type: string
+                    example: "ABC Car Wash"
+            total:
+              type: integer
+              example: 40
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+
+    SuccessUpdateProfileResponse:
+      type: object
+      properties:
+
+        data:
+          type: object
+          properties:
+            updated:
+              type: integer
+              example: 1
+            userId:
+              type: integer
+              example: 12
+        message:
+          type: string
+          example: Profile updated successfully
+  
+    SuccessMessageOnly:
+      type: object
+      properties:
+        message: { type: string, example: Operation completed successfully }
+
+    SuccessOtpTokenResponse:
+      type: object
+      properties:
+        message: { type: string, example: OTP resent successfully }
+        data:
+          type: object
+          properties:
+            otpToken: { type: string }
+
+    SuccessAuthTokensResponse:
+      type: object
+      properties:
+        message: { type: string, example: OTP verified successfully }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+            
+    SuccessCreateBannerResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Banner created successfully
+
+    SuccessLocationAutocompleteResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              addressId: { type: integer }
+              name: { type: string }
+              addressLine1: { type: string }
+              city: { type: string }
+              state: { type: string }
+              country: { type: string }
+              pinCode: { type: string }
+              latitude: { type: number }
+              longitude: { type: number }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    SuccessAddressResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            addressId: { type: integer }
+            nickName: { type: string }
+            name: { type: string }
+            addressLine1: { type: string }
+            city: { type: string }
+            state: { type: string }
+            country: { type: string }
+            pinCode: { type: string }
+            latitude: { type: number }
+            longitude: { type: number }
+
+    SuccessSelectedAddressResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            selectedAddressId: { type: integer }
+
+    SuccessCarsResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              model: { type: string }
+              makeId: { type: integer }
+              makeName: { type: string }
+              categoryId: { type: integer }
+              categoryName: { type: string }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    SuccessCarBrandsResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    AddServiceRequest:
+      type: object
+      required:
+        - name
+        - displayName
+        - imageId
+        - targetValue
+      properties:
+        name: { type: string }
+        displayName: { type: string }
+        imageId: { type: string }
+        targetValue: { type: string }
+
+    SuccessAddServiceResponse:
+      type: object
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            displayName: { type: string }
+            imageId: { type: string }
+            targetValue: { type: string }
+            isActive: { type: boolean }
+
+    ####################################################
+    # NEW SCHEMA FOR USER ADDRESS LIST
+    ####################################################
+
+    SuccessUserAddressesResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: User addresses fetched successfully
+        data:
+          type: object
+          properties:
+            addresses:
+              type: array
+              items:
+                type: object
+                properties:
+                  addressId: { type: integer }
+                  nickName: { type: string }
+                  name: { type: string }
+                  addressLine1: { type: string }
+                  country: { type: string }
+                  city: { type: string }
+                  state: { type: string }
+                  pinCode: { type: string }
+                  latitude: { type: number }
+                  longitude: { type: number }
+                  isDefault: { type: boolean }
+                  createdAt: { type: string }
+                  updatedAt: { type: string }
+            total:
+              type: integer
+              example: 1
+
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+        errorCode: { type: string }
+        statusCode: { type: integer }
+
+  responses:
+  
+    BadRequestError:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Resource Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    TooManyRequestsError:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+            
+            
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
