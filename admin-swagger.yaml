@@ -538,6 +538,7 @@ paths:
       summary: Create a new banner
       description: |
         Creates a new banner with image upload, category, vendor mapping, schedule time, priority, and audience targeting.
+        Owner should be "SHINR" or "VENDOR".
 
         **Image Requirements:**
         - Must be exactly **272 × 230 pixels**
@@ -570,6 +571,7 @@ paths:
 
                 owner:
                   type: string
+                  enum: ["SHINR", "VENDOR"]
                   example: "SHINR"
 
                 vendorId:
@@ -676,15 +678,16 @@ paths:
     put:
       tags:
         - Banner
-      summary: Update banner details
+      summary: Update banner details,
       description: |
-        Updates an existing banner.
+        Updates an existing banner.OWNER Should be "SHINR" or "VENDOR".
 
         - **bannerId** and **targetAudienceId** are required.
-        - If `owner = VENDOR`, then **vendorId is required**.
-        - If `owner = SHINR`, **vendorId must not be sent**.
-        - `targetAudienceId` must be an array with at least one item.
-        - Dates (`startTime`, `endTime`) must be valid date with Timezone.
+        - OWNER Should be "SHINR" or "VENDOR".
+        - If  owner = VENDOR , then **vendorId is required**.
+        - If owner = SHINR, **vendorId must not be sent**.
+        -  targetAudienceId must be an array with at least one item.
+        - Dates ( startTime ,  endTime ) must be valid date with Timezone.
 
         ### Image Rules (if uploading a new banner image)
         - Supported formats: PNG, JPG
@@ -714,7 +717,8 @@ paths:
                   example: 3
                 owner:
                   type: string
-                  example: "Hero Motors"
+                  enum: ["SHINR", "VENDOR"]
+                  example: "VENDOR"
                 vendorId:
                   type: number
                   example: 5
