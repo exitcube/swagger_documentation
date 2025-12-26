@@ -16,6 +16,8 @@ tags:
     description: Banner management endpoints
   - name: Admin
     description: Admin authentication and management endpoints
+  - name: Vendor
+    description: Vendor management endpoints
 
 
 paths:
@@ -143,53 +145,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-                
-  /banner/get-vendors:
-    get:
-      tags:
-        - Banner
-      summary: Get vendor list with search and pagination
-      description: Fetches the list of vendors for banner creation, with optional search and pagination.
-      security:
-        - bearerAuth: []     # Admin access token required
-      parameters:
-
-        - in: query
-          name: search
-          required: false
-          schema:
-            type: string
-          description: Optional search term to filter vendors by name.
-
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            default: 1
-          description: Page number.
-
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            default: 10
-          description: Number of vendors per page.
-
-      responses:
-        "200":
-          description: Vendors fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessVendorListResponse"
-
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
           
   /banner/get-categories:
     get:
@@ -859,13 +814,15 @@ paths:
       description: |
         Fetches paginated list of banners with optional filters.
 
+        - Only **active banners** (`isActive = true`) are returned.
         - `search` can match: banner title, vendor name, vendor code, or category display text.
-        - `status`, `reviewStatus`, `categoryId`, and `vendorId` are optional exact-match filters.
+        - `status`, `reviewStatus`, `categoryId`, `owner`, and `vendorId` are optional exact-match filters.
+        - `vendorId` is applicable **only when owner = VENDOR**.
         - `startTime` and `endTime` accept **ISO date-time with timezone (timestamptz)**.
         - Supports pagination (`page`, `limit`) and sorting via `sortOrder`.
 
       security:
-        - bearerAuth: []   # Admin access token required
+        - bearerAuth: []
 
       parameters:
         - in: query
@@ -893,6 +850,14 @@ paths:
           description: Filter by review status.
 
         - in: query
+          name: owner
+          schema:
+            type: string
+            enum: ["ADMIN", "VENDOR"]
+          example: "VENDOR"
+          description: Banner owner type.
+
+        - in: query
           name: categoryId
           schema:
             type: string
@@ -903,6 +868,7 @@ paths:
           schema:
             type: string
           example: "vendor_44"
+          description: Applicable only when owner is VENDOR.
 
         - in: query
           name: startTime
@@ -910,7 +876,7 @@ paths:
             type: string
             format: date-time
           example: "2025-12-04T00:00:00+05:30"
-          description: "Start of date range (timestamptz)."
+          description: Start of date range (timestamptz).
 
         - in: query
           name: endTime
@@ -918,7 +884,7 @@ paths:
             type: string
             format: date-time
           example: "2025-12-10T23:59:59+05:30"
-          description: "End of date range (timestamptz)."
+          description: End of date range (timestamptz).
 
         - in: query
           name: page
@@ -960,18 +926,17 @@ paths:
                     category: "Promotions"
                     reviewStatus: "APPROVED"
                     status: "ACTIVE"
+                    owner: "VENDOR"
                     displaySequence: 1
                     startTime: "2025-12-04T00:00:00.000Z"
                     endTime: "2025-12-10T23:59:59.000Z"
                     vendor: "ABC Motors"
 
+        "401":
+          description: Unauthorized
+
         "500":
-          description: Server error
-          content:
-            application/json:
-              example:
-                success: false
-                message: "Failed to fetch banners"
+          description: Failed to fetch banners
 
   /admin/list-adminusers:
     get:
@@ -1254,12 +1219,15 @@ paths:
         "500":
           description: Failed to fetch banner
 
-  /delete-banner/:id':
+  /banner/delete-banner/{id}:
     delete:
       tags:
         - Banner
       summary: Delete a banner
-      description: Soft deletes a banner and its related audience and target configurations.
+      description: >
+        Soft deletes a banner by marking it inactive and also soft deletes
+        related audience and user target configurations.
+        The action is audited using the authenticated admin ID.
       security:
         - bearerAuth: []
       parameters:
@@ -1289,6 +1257,7 @@ paths:
                       deleted:
                         type: integer
                         example: 1
+
         "400":
           description: Invalid banner id
           content:
@@ -1302,12 +1271,81 @@ paths:
                   message:
                     type: string
                     example: "Invalid banner id"
+                  code:
+                    type: string
+                    example: "INVALID_ID"
+
         "401":
           description: Unauthorized
-        "404":
-          description: Banner not found
+
         "500":
           description: Failed to delete banner
+
+  /vendor/get-vendors:
+    get:
+      tags:
+        - Vendor
+      summary: Get vendor list with search and pagination
+      description: |
+        Fetches a paginated list of vendors.
+
+        - Search matches **vendor name** or **vendor code**.
+        - Results are always sorted alphabetically by vendor name (ASC).
+        - This API is used to list vendors for selection in both
+          **Reward** and **Banner** sections.
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Search by vendor name or vendor code.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of vendors per page.
+
+      responses:
+        "200":
+          description: Vendors fetched successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Fetched successfully"
+                pagination:
+                  total: 18
+                  page: 1
+                  limit: 10
+                data:
+                  - id: 3
+                    name: "ABC Motors"
+                    vendorCode: "ABC001"
+                  - id: 7
+                    name: "Zen Auto"
+                    vendorCode: "ZEN007"
+
+        "401":
+          description: Unauthorized
+
+        "500":
+          description: Failed to search vendors
 
 components:
   securitySchemes:
