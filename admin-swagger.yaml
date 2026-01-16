@@ -1347,6 +1347,902 @@ paths:
         "500":
           description: Failed to search vendors
 
+  /reward/category-listing:
+    get:
+      tags:
+        - Reward
+      summary: Get reward category list with search and pagination
+      description: |
+        Fetches a paginated list of active reward categories.
+
+        - Search matches **reward category display name**
+        - Results are sorted by category ID (ASC)
+        - Used while creating or editing rewards
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Search reward category by display name.
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number.
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of categories per page.
+
+      responses:
+        "200":
+          description: Reward categories fetched successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Fetched successfully"
+                pagination:
+                  total: 12
+                  page: 1
+                  limit: 10
+                data:
+                  - id: 1
+                    name: "Fuel Rewards"
+                  - id: 2
+                    name: "Service Cashback"
+
+        "401":
+          description: Unauthorized
+
+        "500":
+          description: Failed to fetch reward categories
+
+  /reward/service-listing:
+    get:
+      tags:
+        - Reward
+      summary: Get reward service list
+      description: |
+        Fetches a paginated list of active services used in rewards.
+
+        - Search matches **service display name**
+        - Only services with `isActive = true` are returned
+        - Results are sorted by service ID (ASC)
+        - Used while creating or editing rewards
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Search service by display name
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of services per page
+
+      responses:
+        "200":
+          description: Services fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Services fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: "Car Wash"
+                      total:
+                        type: integer
+                        example: 15
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/get-target-audience:
+    get:
+      tags:
+        - Reward
+      summary: Get reward target audience options
+      description: |
+        Fetches target audience configurations used while creating or editing rewards.
+
+        - Only **active** target audience configurations are returned.
+        - Results are grouped by **category**.
+        - Each category contains multiple audience items.
+        - Used to configure reward audience targeting.
+        - Categories are derived from **TargetAudience constants**:
+          - MANUAL
+          - EVERYONE
+          - SPECIAL_RULE
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Target audience options fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Target audience options fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category:
+                          type: string
+                          example: MANUAL
+                          description: One of the TargetAudience constants
+                        displayText:
+                          type: string
+                          example: Manual
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              displayText:
+                                type: string
+                                example: Selected Customers
+                              value:
+                                type: string
+                                example: SELECTED_CUST
+                              isFile:
+                                type: boolean
+                                example: true
+                              fileFieldName:
+                                type: string
+                                nullable: true
+                                example: customers.csv
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/create-reward:
+    post:
+      tags:
+        - Reward
+      summary: Create a new reward
+      description: |
+        Creates a new reward with full validation.
+
+        ### Conditional Rules
+        - **vendorId** is required only when `owner = VENDOR` (Owner constants: SHINR, VENDOR)
+        - **percentage** is required only when `offerType = CASHBACK | PERCENTAGE` (OfferType constants: PERCENTAGE, AMOUNT, CASHBACK)
+        - **shinrPercentage & vendorPercentage** are required only when `contribution = SHARE` (Contribution constants: PLATFORM, VENDOR, SHARE)
+        - **maxUsagePeriodValue** is required unless `maxUsagePeriod = OVERALL` (MaxUsagePeriod constants: HOUR, DAY, MONTH, OVERALL)
+        - **endDate** must be greater than `startDate`
+        - **serviceCategoryIds** is an **array of service category IDs**  
+          Each ID must reference an active service category
+
+        - **targetAudienceIds** is an **array of target audience IDs**  
+          Each ID must reference an active target audience in the system  
+          Target audience categories are derived from **TargetAudience constants**:  
+          `MANUAL`, `EVERYONE`, `SPECIAL_RULE`
+        - **status** must be one of RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - owner
+                - title
+                - sideText
+                - summary
+                - description
+                - rewardCategoryId
+                - serviceCategoryIds
+                - displayCouponPage
+                - displayVendorPage
+                - offerType
+                - maxDiscountAmount
+                - minOrderValue
+                - codeGeneration
+                - priority
+                - targetAudienceIds
+                - startDate
+                - totalGrabLimit
+                - contribution
+                - maxUsage
+                - maxUsagePeriod
+                - status
+              properties:
+
+                owner:
+                  type: string
+                  enum: [SHINR, VENDOR]
+                  example: SHINR
+
+                vendorId:
+                  type: integer
+                  nullable: true
+                  example: 5
+                  description: Required when owner is VENDOR
+
+                title:
+                  type: string
+                  example: New Year Cashback
+
+                sideText:
+                  type: string
+                  example: Limited period offer
+
+                summary:
+                  type: string
+                  example: Get cashback on selected services
+
+                description:
+                  type: string
+                  example: Flat cashback for first-time users
+
+                rewardCategoryId:
+                  type: integer
+                  example: 2
+
+                serviceCategoryIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 3, 5]
+
+                displayCouponPage:
+                  type: boolean
+                  example: true
+
+                displayVendorPage:
+                  type: boolean
+                  example: false
+
+                offerType:
+                  type: string
+                  enum: [PERCENTAGE, AMOUNT, CASHBACK]
+                  example: PERCENTAGE
+
+                percentage:
+                  type: number
+                  nullable: true
+                  example: 20
+                  description: Required when offerType is PERCENTAGE or CASHBACK
+
+                maxDiscountAmount:
+                  type: number
+                  example: 500
+
+                minOrderValue:
+                  type: number
+                  example: 1000
+
+                codeGeneration:
+                  type: string
+                  example: AUTO
+
+                priority:
+                  type: integer
+                  example: 1
+
+                targetAudienceIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [2, 4]
+                  description: |
+                    IDs of target audiences. Must reference active target audiences in the system.
+                    Categories are derived from **TargetAudience constants**: MANUAL, EVERYONE, SPECIAL_RULE.
+
+                startDate:
+                  type: string
+                  format: date-time
+                  example: "2026-01-01T00:00:00Z"
+
+                endDate:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: "2026-12-31T23:59:59Z"
+
+                totalGrabLimit:
+                  type: integer
+                  example: 1000
+
+                contribution:
+                  type: string
+                  enum: [PLATFORM, VENDOR, SHARE]
+                  example: SHARE
+
+                shinrPercentage:
+                  type: number
+                  nullable: true
+                  example: 50
+                  description: Required when contribution is SHARE
+
+                vendorPercentage:
+                  type: number
+                  nullable: true
+                  example: 50
+                  description: Required when contribution is SHARE
+
+                maxUsage:
+                  type: integer
+                  example: 1
+
+                maxUsagePeriod:
+                  type: string
+                  enum: [HOUR, DAY, MONTH, OVERALL]
+                  example: MONTH
+
+                maxUsagePeriodValue:
+                  type: integer
+                  nullable: true
+                  example: 3
+                  description: Required unless maxUsagePeriod is OVERALL
+
+                status:
+                  type: string
+                  enum: [DRAFT, ACTIVE]
+                  example: DRAFT
+
+      responses:
+        "200":
+          description: Reward created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reward Created Succefully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 15
+                      title:
+                        type: string
+                        example: New Year Cashback
+                      status:
+                        type: string
+                        example: DRAFT
+
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              examples:
+                VendorMissing:
+                  value:
+                    success: false
+                    message: vendorId is required when owner is vendor
+                PercentageMissing:
+                  value:
+                    success: false
+                    message: Percentage is required when offerType is Cashback or Percentage
+                ContributionMismatch:
+                  value:
+                    success: false
+                    message: SHINR Percentage is required when contribution is SHARE
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/update-reward:
+    put:
+      tags:
+        - Reward
+      summary: Update an existing reward
+      description: |
+        Updates an existing reward.
+
+        ### Validation & Conditional Rules
+        - **rewardId** is mandatory
+        - All other fields are optional (partial update supported)
+        - **vendorId** is required only when `owner = VENDOR` (Owner constants: SHINR, VENDOR)
+        - **percentage** is required only when `offerType = CASHBACK | PERCENTAGE` (OfferType constants: PERCENTAGE, AMOUNT, CASHBACK)
+        - **shinrPercentage & vendorPercentage** are required only when `contribution = SHARE` (Contribution constants: PLATFORM, VENDOR, SHARE)
+        - **maxUsagePeriodValue** is required unless `maxUsagePeriod = OVERALL` (MaxUsagePeriod constants: HOUR, DAY, MONTH, OVERALL)
+        - **endDate** must be greater than `startDate` (if both are provided)
+        - **serviceCategoryIds** is an **array of service category IDs**  
+          Each ID must reference an active service category
+
+        - **targetAudienceIds** is an **array of target audience IDs**  
+          Each ID must reference an active target audience in the system  
+          Target audience categories are derived from **TargetAudience constants**:  
+          `MANUAL`, `EVERYONE`, `SPECIAL_RULE`
+        - **status** must be one of RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rewardId
+              properties:
+
+                rewardId:
+                  type: integer
+                  example: 12
+
+                owner:
+                  type: string
+                  enum: [SHINR, VENDOR]
+                  example: SHINR
+
+                vendorId:
+                  type: integer
+                  nullable: true
+                  example: 5
+                  description: Required when owner is VENDOR
+
+                title:
+                  type: string
+                  example: Updated Cashback Offer
+
+                sideText:
+                  type: string
+                  example: Limited period only
+
+                summary:
+                  type: string
+                  example: Updated reward summary
+
+                description:
+                  type: string
+                  example: Updated reward description
+
+                rewardCategoryId:
+                  type: integer
+                  example: 3
+
+                serviceCategoryIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [2, 4]
+
+                displayCouponPage:
+                  type: boolean
+                  example: true
+
+                displayVendorPage:
+                  type: boolean
+                  example: false
+
+                offerType:
+                  type: string
+                  enum: [PERCENTAGE, AMOUNT, CASHBACK]
+                  example: CASHBACK
+
+                percentage:
+                  type: number
+                  nullable: true
+                  example: 10
+                  description: Required when offerType is CASHBACK or PERCENTAGE
+
+                maxDiscountAmount:
+                  type: number
+                  example: 300
+
+                minOrderValue:
+                  type: number
+                  example: 800
+
+                codeGeneration:
+                  type: string
+                  example: AUTO
+
+                priority:
+                  type: integer
+                  example: 2
+
+                targetAudienceIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 3]
+
+                startDate:
+                  type: string
+                  format: date-time
+                  example: "2026-02-01T00:00:00Z"
+
+                endDate:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: "2026-06-30T23:59:59Z"
+
+                totalGrabLimit:
+                  type: integer
+                  example: 500
+
+                contribution:
+                  type: string
+                  enum: [PLATFORM, VENDOR, SHARE]
+                  example: SHARE
+
+                shinrPercentage:
+                  type: number
+                  nullable: true
+                  example: 60
+                  description: Required when contribution is SHARE
+
+                vendorPercentage:
+                  type: number
+                  nullable: true
+                  example: 40
+                  description: Required when contribution is SHARE
+
+                maxUsage:
+                  type: integer
+                  example: 1
+
+                maxUsagePeriod:
+                  type: string
+                  enum: [HOUR, DAY, MONTH, OVERALL]
+                  example: MONTH
+
+                maxUsagePeriodValue:
+                  type: integer
+                  nullable: true
+                  example: 6
+                  description: Required unless maxUsagePeriod is OVERALL
+
+                status:
+                  type: string
+                  enum: [DRAFT, ACTIVE]
+                  example: ACTIVE
+
+      responses:
+        "200":
+          description: Reward updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reward Updated Succefully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+                      title:
+                        type: string
+                        example: Updated Cashback Offer
+                      status:
+                        type: string
+                        example: ACTIVE
+
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              examples:
+                RewardNotFound:
+                  value:
+                    success: false
+                    message: the given reward is not found
+                VendorMissing:
+                  value:
+                    success: false
+                    message: vendorId is required when owner is vendor
+                PercentageMissing:
+                  value:
+                    success: false
+                    message: Percentage is required when offerType is Cashback or Percentage
+                ContributionMismatch:
+                  value:
+                    success: false
+                    message: SHINR Percentage is required when contribution is SHARE
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/getSingleReward/{id}:
+    get:
+      tags:
+        - Reward
+      summary: Get single reward details
+      description: |
+        Fetch detailed information of a single reward.
+
+        - Returns reward details along with:
+          - Category
+          - Offer type
+          - Contribution details
+          - Vendor information
+          - Target audience configuration
+        - Uses constant-based enum values
+        - Response is compatible with update-reward payload
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Reward ID
+
+      responses:
+        "200":
+          description: Single reward fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Single reward fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+
+                      title:
+                        type: string
+                        example: New Year Cashback
+
+                      description:
+                        type: string
+                        example: Flat cashback on selected services
+
+                      summary:
+                        type: string
+                        example: Cashback reward
+
+                      sideText:
+                        type: string
+                        example: Limited offer
+
+                      rewardCategory:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 3
+                          displayName:
+                            type: string
+                            example: Food & Beverages
+
+                      offerType:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          offerType:
+                            type: string
+                            enum: [PERCENTAGE, AMOUNT, CASHBACK]
+                            example: PERCENTAGE
+                          percentage:
+                            type: number
+                            nullable: true
+                            example: 20
+                          maxAmount:
+                            type: number
+                            nullable: true
+                            example: 500
+
+                      contributor:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 4
+                          contributor:
+                            type: string
+                            enum: [PLATFORM, VENDOR, SHARE]
+                            example: SHARE
+                          shinrPercentage:
+                            type: number
+                            nullable: true
+                            example: 50
+                          vendorPercentage:
+                            type: number
+                            nullable: true
+                            example: 50
+
+                      owner:
+                        type: string
+                        enum: [SHINR, VENDOR]
+                        example: SHINR
+
+                      vendor:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 7
+                          name:
+                            type: string
+                            example: ABC Motors
+
+                      targetAudienceDetails:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 2
+                            displayName:
+                              type: string
+                              example: Selected Customers
+                            value:
+                              type: string
+                              example: SELECTED_CUST
+                            category:
+                              type: string
+                              example: MANUAL
+                            isFile:
+                              type: boolean
+                              example: true
+                            fileFieldName:
+                              type: string
+                              nullable: true
+                              example: customers.csv
+
+                      displayCouponPage:
+                        type: boolean
+                        example: true
+
+                      displayVendorPage:
+                        type: boolean
+                        example: false
+
+                      minOrderValue:
+                        type: number
+                        example: 1000
+
+                      maxUsage:
+                        type: integer
+                        example: 1
+
+                      maxUsagePeriod:
+                        type: string
+                        enum: [HOUR, DAY, MONTH, OVERALL]
+                        example: MONTH
+
+                      maxUsagePeriodValue:
+                        type: integer
+                        nullable: true
+                        example: 3
+
+                      priority:
+                        type: integer
+                        example: 1
+
+                      startDate:
+                        type: string
+                        format: date-time
+                        example: "2026-01-01T00:00:00Z"
+
+                      endDate:
+                        type: string
+                        format: date-time
+                        example: "2026-12-31T23:59:59Z"
+
+                      totalGrabLimit:
+                        type: integer
+                        example: 1000
+
+                      codeGeneration:
+                        type: string
+                        nullable: true
+                        example: AUTO
+
+                      status:
+                        type: string
+                        enum: [DRAFT, ACTIVE]
+                        example: ACTIVE
+
+        "400":
+          description: Reward not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: The given reward is not found
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
 components:
   securitySchemes:
     bearerAuth:
