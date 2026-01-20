@@ -23,83 +23,6 @@ tags:
 paths:
 
 
-  /car:
-    get:
-      tags:
-        - Vehicle
-      summary: Fetch cars with filtering, sorting, and pagination
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: x-device-id
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: search
-          in: query
-          schema: { type: string }
-        - name: makeId
-          in: query
-          schema: { type: integer }
-        - name: categoryId
-          in: query
-          schema: { type: integer }
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 10 }
-        - name: sortOrder
-          in: query
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: asc
-      responses:
-        "200":
-          description: Cars fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessCarsResponse'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "404":
-          $ref: '#/components/responses/NotFoundError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-  /cars/car-brands:
-    get:
-      tags:
-        - Vehicle
-      summary: Fetch car brands (makes)
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema: { type: string }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1 }
-        - in: query
-          name: limit
-          schema: { type: integer, default: 10 }
-      responses:
-        "200":
-          description: Car brands fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessCarBrandsResponse'
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-        "500":
-          $ref: '#/components/responses/InternalServerError'
 
   /service/add-service:
     post:
@@ -2235,6 +2158,1424 @@ paths:
               example:
                 success: false
                 message: The given reward is not found
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/list-rewards:
+    post:
+      tags:
+        - Reward
+      summary: List rewards
+      description: |
+        Fetch a paginated list of rewards with filters.
+
+        - Supports search across title, side text, vendor name/code, and category
+        - All filters are optional
+        - Multiple filters accept **arrays**
+        - Uses constant-based enum values
+        - Only **active** rewards are returned
+
+        ### Array-based Filters
+        - **status[]** → RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+        - **categoryId[]** → Reward category IDs
+        - **serviceId[]** → Service category IDs
+        - **vendorId[]** → Vendor IDs (only when owner = VENDOR)
+
+        ### Conditional Rules
+        - **vendorId[]** is allowed only when `owner = VENDOR`
+        - **startTime & endTime** filter rewards by date range
+        - Pagination is supported using `page` and `limit`
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+            minLength: 3
+          description: Search keyword (minimum 3 characters)
+
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+
+                status:
+                  type: array
+                  items:
+                    type: string
+                    enum: [DRAFT, ACTIVE, EXPIRED]
+                  example: [ACTIVE, DRAFT]
+
+                owner:
+                  type: string
+                  enum: [SHINR, VENDOR]
+                  example: SHINR
+
+                vendorId:
+                  type: array
+                  items:
+                    type: integer
+                  example: [5, 8]
+                  description: Allowed only when owner is VENDOR
+
+                categoryId:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 3]
+
+                serviceId:
+                  type: array
+                  items:
+                    type: integer
+                  example: [2, 4]
+
+                startTime:
+                  type: string
+                  format: date-time
+                  example: "2026-01-01T00:00:00Z"
+
+                endTime:
+                  type: string
+                  format: date-time
+                  example: "2026-12-31T23:59:59Z"
+
+                page:
+                  type: integer
+                  minimum: 1
+                  example: 1
+
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  example: 10
+
+      responses:
+        "200":
+          description: Rewards fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Rewards fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 12
+
+                            title:
+                              type: string
+                              example: New Year Cashback
+
+                            category:
+                              type: object
+                              properties:
+                                displayText:
+                                  type: string
+                                  example: Food & Beverages
+
+                            owner:
+                              type: string
+                              enum: [SHINR, VENDOR]
+                              example: SHINR
+
+                            vendor:
+                              type: object
+                              nullable: true
+                              properties:
+                                name:
+                                  type: string
+                                  example: ABC Motors
+
+                            startDate:
+                              type: string
+                              format: date-time
+                              example: "2026-01-01T00:00:00Z"
+
+                            endDate:
+                              type: string
+                              format: date-time
+                              example: "2026-12-31T23:59:59Z"
+
+                            status:
+                              type: string
+                              enum: [DRAFT, ACTIVE, EXPIRED]
+                              example: ACTIVE
+
+                      total:
+                        type: integer
+                        example: 42
+
+                      page:
+                        type: integer
+                        example: 1
+
+                      limit:
+                        type: integer
+                        example: 10
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /reward/delete-reward/{id}:
+    post:
+      tags:
+        - Reward
+      summary: Delete a reward
+      description: |
+        Soft deletes a reward by ID.
+
+        - Marks the reward as **inactive**
+        - Also deactivates all related data:
+          - Reward audience mappings
+          - Reward service mappings
+          - Reward user target mappings
+          - Reward usage records
+        - Uses authenticated admin context (`removedBy`)
+        - Only **active** rewards can be deleted
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Reward ID to delete
+
+      responses:
+        "200":
+          description: Reward deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Reward deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: integer
+                        example: 1
+
+        "404":
+          description: Reward not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: Reward not found
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/add-brand:
+    post:
+      tags:
+        - Vehicle
+      summary: Add a new vehicle brand
+      description: |
+        Creates a new vehicle brand.
+
+        - Brand name must be **unique**
+        - Only **active** brands are checked for duplication
+        - Newly created brand is marked as **active**
+        - Used while managing vehicle-related configurations
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: Toyota
+                  description: Name of the vehicle brand
+
+      responses:
+        "200":
+          description: Vehicle brand added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Vehicle Brand added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+                      name:
+                        type: string
+                        example: Toyota
+                      isActive:
+                        type: boolean
+                        example: true
+
+        "400":
+          description: Vehicle brand already exists
+          content:
+            application/json:
+              example:
+                success: false
+                message: Vehicle brand already exists
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/update-brand:
+    put:
+      tags:
+        - Vehicle
+      summary: Update vehicle brand
+      description: |
+        Updates the name of an existing vehicle brand.
+
+        ### Rules
+        - **vehicleTypeId** is mandatory
+        - **name** must be unique among active vehicle brands
+        - Only **active** vehicle brands can be updated
+        - Performs a **partial update** on the brand record
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vehicleTypeId
+                - name
+              properties:
+                vehicleTypeId:
+                  type: integer
+                  example: 5
+                  description: ID of the vehicle brand to be updated
+
+                name:
+                  type: string
+                  example: Honda
+                  description: New name for the vehicle brand (must be unique)
+
+      responses:
+        "200":
+          description: Vehicle brand updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Vehicle Brand updated successfully
+                  data:
+                    type: object
+                    description: Update operation result
+                    properties:
+                      affected:
+                        type: integer
+                        example: 1
+
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              examples:
+                BrandExists:
+                  value:
+                    success: false
+                    message: Vehicle brand already exists
+                BrandNotFound:
+                  value:
+                    success: false
+                    message: vehicle brand not found
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/delete-brand/{id}:
+    delete:
+      tags:
+        - Vehicle
+      summary: Delete vehicle brand
+      description: |
+        Soft deletes a vehicle brand by marking it as inactive.
+
+        ### Rules
+        - **id** is mandatory
+        - Only existing vehicle brands can be deleted
+        - This is a **soft delete** (`isActive = false`)
+        - Deleted brands will not appear in listings
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Vehicle brand ID
+
+      responses:
+        "200":
+          description: Vehicle brand deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Vehicle Brand deleted successfully
+                  data:
+                    type: object
+                    description: Delete operation result
+                    properties:
+                      affected:
+                        type: integer
+                        example: 1
+
+        "400":
+          description: Vehicle brand not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: vehicle brand not found
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/brand-listing:
+    get:
+      tags:
+        - Vehicle
+      summary: Get vehicle brand listing
+      description: |
+        Fetch a paginated list of active vehicle brands.
+
+        ### Features
+        - Supports **search by brand name**
+        - Pagination enabled
+        - Returns only **active** vehicle brands
+
+        ### Query Params
+        - `search` is optional
+        - Default `page = 1`
+        - Default `limit = 10`
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Search vehicle brand by name
+
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of records per page
+
+      responses:
+        "200":
+          description: Vehicle brand list fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: Honda
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 25
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/add-vehicle:
+    post:
+      tags:
+        - Vehicle
+      summary: Add a new vehicle
+      description: |
+        Add a new vehicle model under a specific brand and category.
+
+        ### Validations
+        - **model** is required
+        - **makeId** must reference an active vehicle brand
+        - **categoryId** must reference an active vehicle category
+        - Duplicate vehicles (same model + make + category) are not allowed
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - model
+                - makeId
+                - categoryId
+              properties:
+                model:
+                  type: string
+                  example: City
+                makeId:
+                  type: integer
+                  example: 3
+                categoryId:
+                  type: integer
+                  example: 2
+
+      responses:
+        "200":
+          description: Vehicle added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vehicle added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 15
+                      model:
+                        type: string
+                        example: City
+                      makeId:
+                        type: integer
+                        example: 3
+                      categoryId:
+                        type: integer
+                        example: 2
+                      isActive:
+                        type: boolean
+                        example: true
+
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              examples:
+                categoryOrMakeNotFound:
+                  summary: Category or Make not found
+                  value:
+                    success: false
+                    message: category or make not found
+                    code: CATEGORY_OR_MAKE_NOT_FOUND
+                vehicleExists:
+                  summary: Vehicle already exists
+                  value:
+                    success: false
+                    message: Vehicle already exists
+                    code: VEHICLE_EXISTS
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError" 
+
+  /cars/edit-vehicle/{id}:
+    put:
+      tags:
+        - Vehicle
+      summary: Edit vehicle details
+      description: |
+        Update details of an existing vehicle.
+
+        ### Rules
+        - **id** (path param) is mandatory
+        - All body fields are optional (partial update supported)
+        - **makeId** must reference an active vehicle brand (if provided)
+        - **categoryId** must reference an active vehicle category (if provided)
+        - Vehicle must be active
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Vehicle ID
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: City 2024
+                makeId:
+                  type: integer
+                  example: 3
+                categoryId:
+                  type: integer
+                  example: 2
+
+      responses:
+        "200":
+          description: Vehicle updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vehicle updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 15
+                      model:
+                        type: string
+                        example: City 2024
+                      makeId:
+                        type: integer
+                        example: 3
+                      categoryId:
+                        type: integer
+                        example: 2
+                      isActive:
+                        type: boolean
+                        example: true
+
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              examples:
+                vehicleNotFound:
+                  summary: Vehicle not found
+                  value:
+                    success: false
+                    message: Vehicle not found
+                    code: VEHICLE_NOT_FOUND
+                categoryNotFound:
+                  summary: Category not found
+                  value:
+                    success: false
+                    message: Category not found
+                    code: CATEGORY_NOT_FOUND
+                makeNotFound:
+                  summary: Make not found
+                  value:
+                    success: false
+                    message: Make not found
+                    code: MAKE_NOT_FOUND
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/delete-vehicle/{id}:
+    post:
+      tags:
+        - Vehicle
+      summary: Delete vehicle
+      description: |
+        Soft delete a vehicle by marking it as inactive.
+
+        ### Rules
+        - **id** (path param) is mandatory
+        - Vehicle must exist and be active
+        - This is a **soft delete** operation (`isActive = false`)
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Vehicle ID
+
+      responses:
+        "200":
+          description: Vehicle deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vehicle deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 18
+                      model:
+                        type: string
+                        example: Swift
+                      makeId:
+                        type: integer
+                        example: 2
+                      categoryId:
+                        type: integer
+                        example: 1
+                      isActive:
+                        type: boolean
+                        example: false
+
+        "400":
+          description: Vehicle not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: Vehicle not found
+                code: VEHICLE_NOT_FOUND
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/vehicle-models-listing:
+    post:
+      tags:
+        - Vehicle
+      summary: List vehicle models
+      description: |
+        Fetch a paginated list of vehicle models with optional filters.
+
+        ### Filtering Rules
+        - **search** → searches by vehicle model name (query param)
+        - **searchBrandId** → filter by one or more vehicle brand IDs
+        - **searchVehicleTypeId** → filter by one or more vehicle category IDs
+        - Only **active vehicles** are returned
+
+        ### Pagination
+        - **page** defaults to `1`
+        - **limit** defaults to `10`
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+            minLength: 1
+          description: Search by vehicle model name
+          example: Swift
+
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of records per page
+
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                searchBrandId:
+                  type: array
+                  description: Filter by vehicle brand IDs
+                  items:
+                    type: integer
+                  example: [1, 2]
+
+                searchVehicleTypeId:
+                  type: array
+                  description: Filter by vehicle category IDs
+                  items:
+                    type: integer
+                  example: [3, 4]
+
+      responses:
+        "200":
+          description: Vehicle models fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 12
+                        model:
+                          type: string
+                          example: Swift
+                        make:
+                          type: string
+                          example: Maruti
+                        category:
+                          type: string
+                          example: Hatchback
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 25
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 3
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/vehicle-brand-listing:
+    get:
+      tags:
+        - Vehicle
+      summary: List vehicle brands
+      description: |
+        Fetch a paginated list of vehicle brands along with the number of active vehicles for each brand.
+
+        ### Filtering Rules
+        - **searchBrandName** → filter by partial brand name (optional)
+        - Only **active brands** are returned
+        - **numberOfVehicle** reflects only active vehicles
+
+        ### Pagination
+        - **page** defaults to `1`
+        - **limit** defaults to `10`
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: searchBrandName
+          schema:
+            type: string
+          description: Partial brand name to filter brands
+          example: Maruti
+
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of records per page
+
+      responses:
+        "200":
+          description: Vehicle brands fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ListedBrands:
+                          type: integer
+                          description: Total number of active brands
+                          example: 25
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: Maruti
+                        numberOfVehicle:
+                          type: integer
+                          example: 12
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 25
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 3
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/list-vehicle-types:
+    get:
+      tags:
+        - Vehicle
+      summary: List vehicle types
+      description: |
+        Fetch a paginated list of active vehicle types (categories).
+
+        ### Filtering
+        - **search** → optional search string to filter vehicle types by name
+        - Only **active vehicle types** are returned
+
+        ### Pagination
+        - **page** defaults to `1`
+        - **limit** defaults to `10`
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search term to filter vehicle types by name
+          example: Car
+
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of records per page
+
+      responses:
+        "200":
+          description: Vehicle types fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: SUV
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 15
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 2
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/add-vehicle-types:
+    post:
+      tags:
+        - Vehicle
+      summary: Add a new vehicle type
+      description: |
+        Adds a new vehicle type (category) to the system.
+
+        - Vehicle type names must be **unique**.
+        - Only **active** vehicle types are considered for other operations.
+        - Returns the created vehicle type object.
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: SUV
+                  description: Name of the vehicle type
+
+      responses:
+        "201":
+          description: Vehicle type created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: VehicleType added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: SUV
+                      isActive:
+                        type: boolean
+                        example: true
+
+        "400":
+          description: Validation error / Duplicate vehicle type
+          content:
+            application/json:
+              examples:
+                VehicleTypeDuplicate:
+                  value:
+                    success: false
+                    message: Vehicle type already exists
+                    code: VEHICLETYPE_DUPLICATE
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/update-vehicle-types:
+    put:
+      tags:
+        - Vehicle
+      summary: Update a vehicle type
+      description: |
+        Updates the name of an existing vehicle type (category).
+
+        - **vehicleTypeId** (query) is required to identify the vehicle type.
+        - **name** (body) is required and must be unique among active vehicle types.
+        - Returns the updated vehicle type object.
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: vehicleTypeId
+          required: true
+          schema:
+            type: integer
+          description: ID of the vehicle type to update
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: SUV
+                  description: New name for the vehicle type
+
+      responses:
+        "200":
+          description: Vehicle type updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: VehicleType updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: SUV
+                      isActive:
+                        type: boolean
+                        example: true
+
+        "400":
+          description: Validation error / Vehicle type not found / Duplicate name
+          content:
+            application/json:
+              examples:
+                VehicleTypeNotFound:
+                  value:
+                    success: false
+                    message: Vehicle type not found
+                    code: VEHICLETYPE_NOT_FOUND
+                VehicleTypeAlreadyExists:
+                  value:
+                    success: false
+                    message: Vehicle type already exists
+                    code: VEHICLETYPE_ALREADY_EXISTS
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/vehicle-type-listing/{id}:
+    post:
+      tags:
+        - Vehicle
+      summary: Delete a vehicle type
+      description: |
+        Marks a vehicle type (category) as inactive (`isActive = false`).
+
+        - **vehicleTypeId** (path parameter) is required to identify the vehicle type.
+        - If the vehicle type does not exist or is already inactive, returns an error.
+        - Returns the deleted (updated) vehicle type object.
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID of the vehicle type to delete
+
+      responses:
+        "200":
+          description: Vehicle type deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: VehicleType deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: SUV
+                      isActive:
+                        type: boolean
+                        example: false
+
+        "400":
+          description: Vehicle type not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: Vehicle type not found
+                code: VEHICLETYPE_NOT_FOUND
+
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /cars/vehicle-type-listing:
+    get:
+      tags:
+        - Vehicle
+      summary: List vehicle types
+      description: |
+        Fetches a paginated list of vehicle types (categories) along with the number of active vehicles in each type.
+
+        - Supports optional search by vehicle type name (`searchVehicleTypeName`).
+        - Returns total active vehicle types and paginated items with vehicle counts.
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: searchVehicleTypeName
+          schema:
+            type: string
+          required: false
+          description: Partial name to filter vehicle types
+
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+          description: Page number for pagination
+
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          required: false
+          description: Number of items per page (max 100)
+
+      responses:
+        "200":
+          description: Vehicle types fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Vehicle types fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 15
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: SUV
+                            numberOfVehicle:
+                              type: integer
+                              example: 25
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
