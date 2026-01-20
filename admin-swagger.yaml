@@ -10,8 +10,6 @@ servers:
 tags:
   - name: Vehicle
     description: Vehicle-related endpoints for fetching car details
-  - name: Service
-    description: Service management endpoints
   - name: Banner
     description: Banner management endpoints
   - name: Admin
@@ -22,85 +20,49 @@ tags:
 
 paths:
 
-
-
-  /service/add-service:
-    post:
-      tags:
-        - Service
-      summary: Add a new service
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AddServiceRequest"
-      responses:
-        "201":
-          description: Service added successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessAddServiceResponse"
-        "400":
-          description: Invalid input data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Failed to add service
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
           
   /banner/get-categories:
     get:
       tags:
         - Banner
       summary: Get banner categories with search and pagination
-      description: Returns all available banner categories with optional search and pagination.
-      security:
-        - bearerAuth: []    # Admin bearer token required
-      parameters:
+      description: |
+        Returns a paginated list of active banner categories.
 
+        - Supports optional search by category display name
+        - Only active categories are returned
+        - Uses standard paginated response format
+
+      security:
+        - bearerAuth: []
+
+      parameters:
         - in: query
           name: search
           required: false
           schema:
             type: string
-          description: Optional search term for filtering categories by display name.
+          description: Optional search term for filtering categories by display name
+          example: Home
 
         - in: query
           name: page
           required: false
           schema:
             type: integer
+            minimum: 1
             default: 1
-          description: Page number.
+          description: Page number
 
         - in: query
           name: limit
           required: false
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
             default: 10
-          description: Number of categories per page.
+          description: Number of categories per page
 
       responses:
         "200":
@@ -108,7 +70,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessCategoryListResponse"
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: Home Banner
+
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 5
+                      pages:
+                        type: integer
+                        example: 1
+                      hasNext:
+                        type: boolean
+                        example: false
+                      hasPrev:
+                        type: boolean
+                        example: false
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
@@ -191,84 +191,21 @@ paths:
         "500":
           $ref: '#/components/responses/InternalServerError'
 
-  /service/update-service/{id}:
-    post:
-      tags:
-        - Service
-      summary: Update a service
-      description: Updates an existing service. Partial update supported.
-      security:
-        - bearerAuth: []
-  
-      parameters:
-        - in: header
-          name: x-device-id
-          required: true
-          schema:
-            type: string
-  
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Service ID
-  
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                displayName:
-                  type: string
-                imageId:
-                  type: string
-                targetValue:
-                  type: string
-  
-      responses:
-        "200":
-          description: Service updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Service Updated successfully
-                  data:
-                    type: object
-                    properties:
-                      updated:
-                        type: integer
-                        example: 1
-                      serviceId:
-                        type: integer
-                        example: 14
-  
-        "400":
-          $ref: '#/components/responses/BadRequestError'
-  
-        "404":
-          $ref: '#/components/responses/NotFoundError'
-  
-        "500":
-          $ref: '#/components/responses/InternalServerError'
-
-
   /banner/getTargetAudience:
     get:
       tags:
         - Banner
       summary: Get Target Audience Options
-      description: Returns the list of target audience categories and their items used in banner configuration.
+      description: |
+        Returns the list of target audience categories and their items
+        used in banner configuration.
+
+        - Categories are derived from TargetAudience constants
+        - Items may optionally require a file upload
+
       security:
         - bearerAuth: []
+
       responses:
         "200":
           description: Target audience options fetched successfully
@@ -308,11 +245,18 @@ paths:
                               isFile:
                                 type: boolean
                                 example: true
-  
+                              fileFieldName:
+                                type: string
+                                nullable: true
+                                description: File field name required when isFile is true
+                                example: customers.csv
+
         "400":
           $ref: "#/components/responses/BadRequestError"
+
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+
         "500":
           $ref: "#/components/responses/InternalServerError"
           
@@ -321,25 +265,36 @@ paths:
       tags:
         - Banner
       summary: Update Banner Category Display Text
-      description: Updates the displayText of a specific banner category.
+      description: |
+        Updates the display text of an existing banner category.
+
+        ### Validation Rules
+        - **id** is required and must be a string
+        - **updatingText** is required and must be a string
+
       security:
         - bearerAuth: []
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              properties:
-                id:
-                  type: integer
-                  example: 3
-                updatingText:
-                  type: string
-                  example: "New Category Name"
               required:
                 - id
                 - updatingText
+              properties:
+                id:
+                  type: string
+                  description: Banner category ID
+                  example: "3"
+
+                updatingText:
+                  type: string
+                  description: Updated display text for the banner category
+                  example: "New Category Name"
+
       responses:
         "200":
           description: Banner category updated successfully
@@ -353,17 +308,20 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: banner Category updated Succesfully
+                    example: Banner category updated successfully
                   data:
                     type: object
                     properties:
                       updated:
                         type: integer
                         example: 1
+
         "400":
           $ref: "#/components/responses/BadRequestError"
+
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+
         "500":
           $ref: "#/components/responses/InternalServerError"
           
@@ -690,7 +648,7 @@ paths:
                 action:
                   type: string
                   enum: ["APPROVE", "REJECT"]
-                  example: "APPROVE"
+                  example: "REJECT"
                   description: "Required. Must be either APPROVE or REJECT."
                 rejectReason:
                   type: string
@@ -729,20 +687,18 @@ paths:
                 success: false
                 message: "Failed to Approve banners"
 
-  /banner/getBanners:
-    get:
+  /banner/getbanners:
+    post:
       tags:
         - Banner
-      summary: Get list of banners with filters
+      summary: Get banner list with filters, search, and pagination
       description: |
-        Fetches paginated list of banners with optional filters.
+        Fetch banners with advanced filtering and pagination.
 
-        - Only **active banners** (`isActive = true`) are returned.
-        - `search` can match: banner title, vendor name, vendor code, or category display text.
-        - `status`, `reviewStatus`, `categoryId`, `owner`, and `vendorId` are optional exact-match filters.
-        - `vendorId` is applicable **only when owner = VENDOR**.
-        - `startTime` and `endTime` accept **ISO date-time with timezone (timestamptz)**.
-        - Supports pagination (`page`, `limit`) and sorting via `sortOrder`.
+        - Search works on banner title, vendor name, vendor code, and category
+        - Vendor filter is allowed only when owner is VENDOR
+        - Date filters support single date or date range
+        - Partial filters are supported
 
       security:
         - bearerAuth: []
@@ -750,116 +706,165 @@ paths:
       parameters:
         - in: query
           name: search
+          required: false
           schema:
             type: string
             minLength: 3
-          example: "offer"
-          description: Search by title, vendor name/code, or category text.
+          description: |
+            Search term (min 3 characters).
+            Searches across:
+            - Banner title
+            - Vendor name
+            - Vendor code
+            - Banner category
 
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: ["ACTIVE", "DRAFT", "EXPIRED"]
-          example: "ACTIVE"
-          description: Filter by banner status.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: array
+                  items:
+                    type: string
+                    example: ACTIVE
 
-        - in: query
-          name: reviewStatus
-          schema:
-            type: string
-            enum: ["PENDING", "APPROVED", "REJECTED"]
-          example: "APPROVED"
-          description: Filter by review status.
+                reviewStatus:
+                  type: array
+                  items:
+                    type: string
+                    example: APPROVED
 
-        - in: query
-          name: owner
-          schema:
-            type: string
-            enum: ["ADMIN", "VENDOR"]
-          example: "VENDOR"
-          description: Banner owner type.
+                owner:
+                  type: string
+                  example: VENDOR
 
-        - in: query
-          name: categoryId
-          schema:
-            type: string
-          example: "cat_12"
+                categoryId:
+                  type: array
+                  items:
+                    type: integer
+                    example: 2
 
-        - in: query
-          name: vendorId
-          schema:
-            type: string
-          example: "vendor_44"
-          description: Applicable only when owner is VENDOR.
+                vendorId:
+                  type: array
+                  items:
+                    type: integer
+                    example: 15
+                  description: Required only when owner is VENDOR
 
-        - in: query
-          name: startTime
-          schema:
-            type: string
-            format: date-time
-          example: "2025-12-04T00:00:00+05:30"
-          description: Start of date range (timestamptz).
+                startTime:
+                  type: string
+                  format: date-time
+                  example: "2026-01-01T00:00:00Z"
 
-        - in: query
-          name: endTime
-          schema:
-            type: string
-            format: date-time
-          example: "2025-12-10T23:59:59+05:30"
-          description: End of date range (timestamptz).
+                endTime:
+                  type: string
+                  format: date-time
+                  example: "2026-01-31T23:59:59Z"
 
-        - in: query
-          name: page
-          schema:
-            type: number
-            default: 1
-          example: 1
+                sortOrder:
+                  type: string
+                  enum: [ASC, DESC]
+                  default: ASC
+                  example: ASC
 
-        - in: query
-          name: limit
-          schema:
-            type: number
-            default: 10
-          example: 10
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  example: 1
 
-        - in: query
-          name: sortOrder
-          schema:
-            type: string
-            enum: ["ASC", "DESC"]
-            default: "ASC"
-          example: "ASC"
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  example: 10
 
       responses:
         "200":
-          description: Paginated list of banners
+          description: Banners fetched successfully
           content:
             application/json:
-              example:
-                success: true
-                message: "Fetched successfully"
-                pagination:
-                  total: 25
-                  page: 1
-                  limit: 10
-                data:
-                  - id: 12
-                    title: "New Year Offer"
-                    category: "Promotions"
-                    reviewStatus: "APPROVED"
-                    status: "ACTIVE"
-                    owner: "VENDOR"
-                    displaySequence: 1
-                    startTime: "2025-12-04T00:00:00.000Z"
-                    endTime: "2025-12-10T23:59:59.000Z"
-                    vendor: "ABC Motors"
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 12
+                        title:
+                          type: string
+                          example: Republic Day Offer
+                        category:
+                          type: string
+                          example: Festival
+                        reviewStatus:
+                          type: string
+                          example: APPROVED
+                        status:
+                          type: string
+                          example: ACTIVE
+                        owner:
+                          type: string
+                          example: VENDOR
+                        vendor:
+                          type: string
+                          example: Amazon
+                        displaySequence:
+                          type: integer
+                          example: 1
+                        startTime:
+                          type: string
+                          format: date-time
+                          example: "2026-01-01T00:00:00Z"
+                        endTime:
+                          type: string
+                          format: date-time
+                          example: "2026-01-31T23:59:59Z"
+
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 120
+                      pages:
+                        type: integer
+                        example: 12
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrev:
+                        type: boolean
+                        example: false
+
+        "400":
+          $ref: "#/components/responses/BadRequestError"
 
         "401":
-          description: Unauthorized
+          $ref: "#/components/responses/UnauthorizedError"
 
         "500":
-          description: Failed to fetch banners
+          $ref: "#/components/responses/InternalServerError"
 
   /admin/list-adminusers:
     get:
@@ -2171,7 +2176,7 @@ paths:
         - Reward
       summary: List rewards
       description: |
-        Fetch a paginated list of rewards with filters.
+        Fetch a paginated list of rewards with optional filters.
 
         - Supports search across title, side text, vendor name/code, and category
         - All filters are optional
@@ -2180,15 +2185,10 @@ paths:
         - Only **active** rewards are returned
 
         ### Array-based Filters
-        - **status[]** → RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+        - **status[]** → RewardStatus: DRAFT, ACTIVE, EXPIRED
         - **categoryId[]** → Reward category IDs
-        - **serviceId[]** → Service category IDs
-        - **vendorId[]** → Vendor IDs (only when owner = VENDOR)
-
-        ### Conditional Rules
-        - **vendorId[]** is allowed only when `owner = VENDOR`
-        - **startTime & endTime** filter rewards by date range
-        - Pagination is supported using `page` and `limit`
+        - **serviceId[]** → Service IDs
+        - **vendorId[]** → Vendor IDs (allowed only when owner = VENDOR)
 
       security:
         - bearerAuth: []
@@ -2201,6 +2201,7 @@ paths:
             type: string
             minLength: 3
           description: Search keyword (minimum 3 characters)
+          example: off
 
       requestBody:
         required: false
@@ -2209,18 +2210,17 @@ paths:
             schema:
               type: object
               properties:
-
                 status:
                   type: array
                   items:
                     type: string
                     enum: [DRAFT, ACTIVE, EXPIRED]
-                  example: [ACTIVE, DRAFT]
+                  example: [DRAFT]
 
                 owner:
                   type: string
                   enum: [SHINR, VENDOR]
-                  example: SHINR
+                  example: VENDOR
 
                 vendorId:
                   type: array
@@ -2270,71 +2270,79 @@ paths:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: Rewards fetched successfully
+                  success:
+                    type: boolean
+                    example: true
+
                   data:
-                    type: object
-                    properties:
-                      items:
-                        type: array
-                        items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 20
+
+                        title:
+                          type: string
+                          example: 50% off
+
+                        category:
                           type: object
                           properties:
-                            id:
-                              type: integer
-                              example: 12
-
-                            title:
+                            displayText:
                               type: string
-                              example: New Year Cashback
+                              example: comeBackUser
 
-                            category:
-                              type: object
-                              properties:
-                                displayText:
-                                  type: string
-                                  example: Food & Beverages
+                        owner:
+                          type: string
+                          enum: [SHINR, VENDOR]
+                          example: VENDOR
 
-                            owner:
+                        vendor:
+                          type: object
+                          nullable: true
+                          properties:
+                            name:
                               type: string
-                              enum: [SHINR, VENDOR]
-                              example: SHINR
+                              example: adddu
 
-                            vendor:
-                              type: object
-                              nullable: true
-                              properties:
-                                name:
-                                  type: string
-                                  example: ABC Motors
+                        startDate:
+                          type: string
+                          format: date-time
+                          example: "2024-12-31T18:30:00.000Z"
 
-                            startDate:
-                              type: string
-                              format: date-time
-                              example: "2026-01-01T00:00:00Z"
+                        endDate:
+                          type: string
+                          format: date-time
+                          example: "2025-01-31T18:29:59.000Z"
 
-                            endDate:
-                              type: string
-                              format: date-time
-                              example: "2026-12-31T23:59:59Z"
+                        status:
+                          type: string
+                          enum: [DRAFT, ACTIVE, EXPIRED]
+                          example: DRAFT
 
-                            status:
-                              type: string
-                              enum: [DRAFT, ACTIVE, EXPIRED]
-                              example: ACTIVE
-
-                      total:
-                        type: integer
-                        example: 42
-
+                  pagination:
+                    type: object
+                    properties:
                       page:
                         type: integer
                         example: 1
-
                       limit:
                         type: integer
                         example: 10
+                      total:
+                        type: integer
+                        example: 5
+                      pages:
+                        type: integer
+                        example: 1
+                      hasNext:
+                        type: boolean
+                        example: false
+                      hasPrev:
+                        type: boolean
+                        example: false
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
@@ -2980,6 +2988,12 @@ paths:
         - **searchVehicleTypeId** → filter by one or more vehicle category IDs
         - Only **active vehicles** are returned
 
+        ### Notes
+        - `searchBrandId` and `searchVehicleTypeId` **accept only arrays**
+        - Single values must still be passed as an array  
+          ✔️ Example: `[1]`  
+          ❌ Example: `1`
+
         ### Pagination
         - **page** defaults to `1`
         - **limit** defaults to `10`
@@ -3143,42 +3157,56 @@ paths:
                   success:
                     type: boolean
                     example: true
-                  message:
-                    type: string
-                    example: Data fetched successfully
+
                   data:
                     type: array
+                    description: |
+                      Array containing:
+                      1) Total active brand count
+                      2) List of vehicle brands
                     items:
-                      type: object
-                      properties:
-                        ListedBrands:
-                          type: integer
-                          description: Total number of active brands
-                          example: 25
-                        id:
-                          type: integer
-                          example: 1
-                        name:
-                          type: string
-                          example: Maruti
-                        numberOfVehicle:
-                          type: integer
-                          example: 12
+                      oneOf:
+                        - type: object
+                          properties:
+                            ListedBrands:
+                              type: integer
+                              description: Total number of active brands
+                              example: 4
+                        - type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 2
+                              name:
+                                type: string
+                                example: Maruti
+                              numberOfVehicle:
+                                type: integer
+                                example: 3
+
                   pagination:
                     type: object
                     properties:
-                      total:
-                        type: integer
-                        example: 25
                       page:
                         type: integer
                         example: 1
                       limit:
                         type: integer
                         example: 10
-                      totalPages:
+                      total:
                         type: integer
-                        example: 3
+                        example: 4
+                      pages:
+                        type: integer
+                        example: 1
+                      hasNext:
+                        type: boolean
+                        example: false
+                      hasPrev:
+                        type: boolean
+                        example: false
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
@@ -3436,7 +3464,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /cars/vehicle-type-listing/{id}:
+  /cars/delete-vehicle-types/{id}:
     post:
       tags:
         - Vehicle
@@ -3507,10 +3535,15 @@ paths:
         - Vehicle
       summary: List vehicle types
       description: |
-        Fetches a paginated list of vehicle types (categories) along with the number of active vehicles in each type.
+        Fetches a paginated list of vehicle types (categories) along with the number
+        of active vehicles in each type.
 
-        - Supports optional search by vehicle type name (`searchVehicleTypeName`).
-        - Returns total active vehicle types and paginated items with vehicle counts.
+        ### Notes
+        - Only **active vehicle types** are returned
+        - `numberOfVehicle` counts only **active vehicles**
+        - Response data is returned as:
+          1) Total active vehicle types
+          2) Paginated vehicle type list
 
       security:
         - bearerAuth: []
@@ -3522,22 +3555,24 @@ paths:
             type: string
           required: false
           description: Partial name to filter vehicle types
+          example: SUV
 
         - in: query
           name: page
           schema:
             type: integer
+            minimum: 1
             default: 1
-          required: false
-          description: Page number for pagination
+          description: Page number
 
         - in: query
           name: limit
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
             default: 10
-          required: false
-          description: Number of items per page (max 100)
+          description: Number of records per page
 
       responses:
         "200":
@@ -3547,35 +3582,58 @@ paths:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: Vehicle types fetched successfully
+                  success:
+                    type: boolean
+                    example: true
+
                   data:
+                    type: array
+                    description: |
+                      Array containing:
+                      1) Total active vehicle types
+                      2) List of vehicle types
+                    items:
+                      oneOf:
+                        - type: object
+                          properties:
+                            ListedVehicleTypes:
+                              type: integer
+                              example: 7
+                        - type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 5
+                              name:
+                                type: string
+                                example: vcdvf
+                              numberOfVehicle:
+                                type: integer
+                                example: 1
+
+                  pagination:
                     type: object
                     properties:
-                      total:
-                        type: integer
-                        example: 15
                       page:
                         type: integer
                         example: 1
                       limit:
                         type: integer
                         example: 10
-                      items:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 1
-                            name:
-                              type: string
-                              example: SUV
-                            numberOfVehicle:
-                              type: integer
-                              example: 25
+                      total:
+                        type: integer
+                        example: 1
+                      pages:
+                        type: integer
+                        example: 1
+                      hasNext:
+                        type: boolean
+                        example: false
+                      hasPrev:
+                        type: boolean
+                        example: false
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
