@@ -241,7 +241,6 @@ paths:
                   message:
                     type: string
 
-              # 🔥 UPDATED FULL RESPONSE EXAMPLE
               example:
                 success: true
                 data:
@@ -1504,7 +1503,6 @@ paths:
                                 nullable: true
                                 description: File field name required when isFile is true
 
-              # 🔥 SAME RESPONSE EXAMPLE AS BANNER
               example:
                 success: true
                 data:
