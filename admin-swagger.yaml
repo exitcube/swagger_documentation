@@ -200,9 +200,6 @@ paths:
         Returns the list of target audience categories and their items
         used in banner configuration.
 
-        - Categories are derived from TargetAudience constants
-        - Items may optionally require a file upload
-
       security:
         - bearerAuth: []
 
@@ -216,10 +213,6 @@ paths:
                 properties:
                   success:
                     type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Target audience options fetched successfully
                   data:
                     type: array
                     items:
@@ -227,29 +220,68 @@ paths:
                       properties:
                         category:
                           type: string
-                          example: MANUAL
                         displayText:
                           type: string
-                          example: Manual
                         items:
                           type: array
                           items:
                             type: object
                             properties:
+                              id:
+                                type: integer
                               displayText:
                                 type: string
-                                example: Selected Customers
                               value:
                                 type: string
-                                example: SELECTED_CUST
                               isFile:
                                 type: boolean
-                                example: true
                               fileFieldName:
                                 type: string
                                 nullable: true
-                                description: File field name required when isFile is true
-                                example: customers.csv
+                  message:
+                    type: string
+
+              example:
+                success: true
+                data:
+                  - category: MANUAL
+                    displayText: Manual
+                    items:
+                      - id: 2
+                        displayText: Manual
+                        value: MANUAL
+                        isFile: true
+                        fileFieldName: customers.csv
+
+                  - category: EVERYONE
+                    displayText: Everyone
+                    items:
+                      - id: 1
+                        displayText: Everyone
+                        value: EVERYONE
+                        isFile: false
+                        fileFieldName: null
+
+                  - category: SPECIAL_RULE
+                    displayText: Special Rules
+                    items:
+                      - id: 3
+                        displayText: New User
+                        value: NEW_USER
+                        isFile: false
+                        fileFieldName: null
+                      - id: 4
+                        displayText: First Car Wash
+                        value: FIRST_CAR_WASH
+                        isFile: false
+                        fileFieldName: null
+                      - id: 5
+                        displayText: First Any Service
+                        value: FIRST_ANY_SERVICE
+                        isFile: false
+                        fileFieldName: null
+
+                message: Target audience options fetched successfully
 
         "400":
           $ref: "#/components/responses/BadRequestError"
@@ -1425,16 +1457,8 @@ paths:
         - Reward
       summary: Get reward target audience options
       description: |
-        Fetches target audience configurations used while creating or editing rewards.
-
-        - Only **active** target audience configurations are returned.
-        - Results are grouped by **category**.
-        - Each category contains multiple audience items.
-        - Used to configure reward audience targeting.
-        - Categories are derived from **TargetAudience constants**:
-          - MANUAL
-          - EVERYONE
-          - SPECIAL_RULE
+        Returns the list of target audience categories and their items
+        used in reward configuration.
 
       security:
         - bearerAuth: []
@@ -1447,9 +1471,10 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
                   message:
                     type: string
-                    example: Target audience options fetched successfully
                   data:
                     type: array
                     items:
@@ -1457,11 +1482,9 @@ paths:
                       properties:
                         category:
                           type: string
-                          example: MANUAL
                           description: One of the TargetAudience constants
                         displayText:
                           type: string
-                          example: Manual
                         items:
                           type: array
                           items:
@@ -1469,20 +1492,58 @@ paths:
                             properties:
                               id:
                                 type: integer
-                                example: 1
                               displayText:
                                 type: string
-                                example: Selected Customers
                               value:
                                 type: string
-                                example: SELECTED_CUST
                               isFile:
                                 type: boolean
-                                example: true
                               fileFieldName:
                                 type: string
                                 nullable: true
-                                example: customers.csv
+                                description: File field name required when isFile is true
+
+              example:
+                success: true
+                data:
+                  - category: MANUAL
+                    displayText: Manual
+                    items:
+                      - id: 2
+                        displayText: Manual
+                        value: MANUAL
+                        isFile: true
+                        fileFieldName: customers.csv
+
+                  - category: EVERYONE
+                    displayText: Everyone
+                    items:
+                      - id: 1
+                        displayText: Everyone
+                        value: EVERYONE
+                        isFile: false
+                        fileFieldName: null
+
+                  - category: SPECIAL_RULE
+                    displayText: Special Rules
+                    items:
+                      - id: 3
+                        displayText: New User
+                        value: NEW_USER
+                        isFile: false
+                        fileFieldName: null
+                      - id: 4
+                        displayText: First Car Wash
+                        value: FIRST_CAR_WASH
+                        isFile: false
+                        fileFieldName: null
+                      - id: 5
+                        displayText: First Any Service
+                        value: FIRST_ANY_SERVICE
+                        isFile: false
+                        fileFieldName: null
+
+                message: Target audience options fetched successfully
 
         "401":
           $ref: "#/components/responses/UnauthorizedError"
