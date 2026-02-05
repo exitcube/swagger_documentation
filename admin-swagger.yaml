@@ -898,7 +898,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /admin/list-adminusers:
+  /admin/list-adminusers-roles:
     get:
       summary: Get list of admin roles
       tags:
@@ -1064,6 +1064,452 @@ paths:
 
         "500":
           description: Server error
+
+  /admin/edit-adminuser:
+    put:
+      summary: Edit Admin User
+      description: Updates admin user details using admin ID.
+
+
+        - `empCode` cannot be updated.
+        - Only `SUPER_ADMIN` is allowed to edit admin user details.
+        - Only editable fields are `userName`, `newRole`, `email`, and `joiningDate`.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []   # Admin access required
+
+      parameters:
+        - name: adminId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: ID of the admin user to update
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userName:
+                  type: string
+                  example: "ABC"
+                newRole:
+                  type: string
+                  example: "ADMIN"
+                email:
+                  type: string
+                  format: email
+                  example: "abc123@example.com"
+                joiningDate:
+                  type: string
+                  format: date
+                  example: "2025-01-10"
+
+      responses:
+        "200":
+          description: Admin user updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Admin user updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      userName:
+                        type: string
+                        example: ABC
+                      role:
+                        type: string
+                        example: SUPER_ADMIN
+                      email:
+                        type: string
+                        example: abc123@example.com
+                      joiningDate:
+                        type: string
+                        format: date
+                        example: "2025-01-10"
+                      empCode:
+                        type: string
+                        readOnly: true
+                        example: "SHINR121001"
+
+        "400":
+          description: Bad Request / Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: INVALID_ID
+                  message:
+                    type: string
+                    example: Invalid admin user id
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: EDIT_ADMIN_USER_FAILED
+                  message:
+                    type: string
+                    example: Failed to edit admin user. Please try again later.
+
+  /admin/delete-adminuser:
+    post:
+      summary: Delete Admin User
+      description: |
+        Deletes an admin user using admin ID.
+
+        **Rules:**
+        - This is a soft delete operation.
+        - The admin user is not permanently removed; `isActive` is set to `false`.
+        - Only `SUPER_ADMIN` is allowed to delete admin users.
+
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []   # Admin access required
+
+      parameters:
+        - name: adminId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: ID of the admin user to delete
+
+      responses:
+        "200":
+          description: Admin user deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Admin user deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      userName:
+                        type: string
+                        example: Adarsh
+                      role:
+                        type: string
+                        example: SUPER_ADMIN
+                      email:
+                        type: string
+                        example: adarsh@example.com
+                      joiningDate:
+                        type: string
+                        format: date
+                        example: "2025-01-10"
+                      isActive:
+                        type: boolean
+                        example: false
+
+        "400":
+          description: Invalid admin user ID or request error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: INVALID_ID
+                  message:
+                    type: string
+                    example: Invalid admin user id
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: DELETE_ADMIN_USER_FAILED
+                  message:
+                    type: string
+                    example: Failed to delete admin user. Please try again later.
+
+  /admin/single-adminuser/${id}:
+    get:
+      summary: Get Single Admin User
+      description: |
+        Fetches details of a single admin user using admin ID.
+
+        **Rules:**
+        - Only active admin users can be fetched.
+        - Returns admin details including `empCode`.
+        - If the admin user does not exist or is inactive, a 404 error is returned.
+
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []   # Admin access required
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the admin user to fetch
+
+      responses:
+        "200":
+          description: Admin user fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Admin user fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      userName:
+                        type: string
+                        example: Adarsh
+                      role:
+                        type: string
+                        example: SUPER_ADMIN
+                      email:
+                        type: string
+                        example: adarsh@example.com
+                      empCode:
+                        type: string
+                        example: EMP001
+                      joiningDate:
+                        type: string
+                        format: date
+                        example: "2025-01-10"
+
+        "404":
+          description: Admin user not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: ADMIN_USER_NOT_FOUND
+                  message:
+                    type: string
+                    example: Admin user does not exist.
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: SINGLE_USER_LISTING_FAILED
+                  message:
+                    type: string
+                    example: Failed to fetch single user. Please try again later.
+
+  /admin/adminusers-listing:
+    post:
+      summary: List Admin Users
+      description: |
+        Fetches a paginated list of active admin users.
+
+        **Features:**
+        - Supports searching by `userName` and `empCode`.
+        - Supports filtering by multiple roles.
+        - Returns paginated results.
+        - Only active admin users are returned.
+
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []   # Admin access required
+
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 3
+          description: Search by userName or empCode
+
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: array
+                  items:
+                    type: string
+                  example: ["SUPER_ADMIN", "ADMIN"]
+                  description: Filter by admin roles
+
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  example: 1
+
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  example: 10
+
+      responses:
+        "200":
+          description: Admin users fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        userName:
+                          type: string
+                          example: ABC
+                        role:
+                          type: string
+                          example: SUPER_ADMIN
+                        email:
+                          type: string
+                          example: abc123@example.com
+                        empCode:
+                          type: string
+                          example: SHINR121001
+                        joiningDate:
+                          type: string
+                          format: date
+                          example: "2025-01-10"
+
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 5
+
+        "400":
+          description: Validation or request error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: ADMIN_USER_LISTING_FAILED
+                  message:
+                    type: string
+                    example: Failed to fetch admin users. Please try again later.
+
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  code:
+                    type: string
+                    example: ADMIN_USER_LISTING_FAILED
+                  message:
+                    type: string
+                    example: Failed to fetch admin users. Please try again later.
 
   /banner/{id}:
     get:
@@ -1307,7 +1753,7 @@ paths:
         "500":
           description: Failed to search vendors
 
-  /reward/category-listing:
+  /rewards/category-listing:
     get:
       tags:
         - Reward
@@ -1370,7 +1816,7 @@ paths:
         "500":
           description: Failed to fetch reward categories
 
-  /reward/service-listing:
+  /rewards/service-listing:
     get:
       tags:
         - Reward
@@ -1451,7 +1897,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/get-target-audience:
+  /rewards/get-target-audience:
     get:
       tags:
         - Reward
@@ -1551,7 +1997,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/create-reward:
+  /rewards/create-reward:
     post:
       tags:
         - Reward
@@ -1788,7 +2234,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/update-reward:
+  /rewards/update-reward:
     put:
       tags:
         - Reward
@@ -2012,7 +2458,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/getSingleReward/{id}:
+  /rewards/getSingleReward/{id}:
     get:
       tags:
         - Reward
@@ -2231,7 +2677,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/list-rewards:
+  /rewards/list-rewards:
     post:
       tags:
         - Reward
@@ -2411,7 +2857,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /reward/delete-reward/{id}:
+  /rewards/delete-reward/{id}:
     post:
       tags:
         - Reward
