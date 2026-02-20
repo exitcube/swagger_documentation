@@ -200,6 +200,12 @@ paths:
         Returns the list of target audience categories and their items
         used in banner configuration.
 
+        ### Notes
+        - Target audiences are grouped by **category**
+        - **MANUAL** category always requires additional input
+          - `isFile = true`
+        - **EVERYONE** and **SPECIAL_RULE** do not require files
+
       security:
         - bearerAuth: []
 
@@ -213,6 +219,8 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
+
                   data:
                     type: array
                     items:
@@ -220,8 +228,12 @@ paths:
                       properties:
                         category:
                           type: string
+                          example: MANUAL
+
                         displayText:
                           type: string
+                          example: Manual
+
                         items:
                           type: array
                           items:
@@ -229,17 +241,26 @@ paths:
                             properties:
                               id:
                                 type: integer
+                                example: 9
+
                               displayText:
                                 type: string
+                                example: Selected Customer
+
                               value:
                                 type: string
+                                example: SELECTED_CUSTOMER
+
                               isFile:
                                 type: boolean
-                              fileFieldName:
-                                type: string
-                                nullable: true
+                                example: true
+                                description: |
+                                  Indicates whether this target audience
+                                  requires additional input configuration
+
                   message:
                     type: string
+                    example: Target audience options fetched successfully
 
               example:
                 success: true
@@ -248,10 +269,14 @@ paths:
                     displayText: Manual
                     items:
                       - id: 2
-                        displayText: Manual
-                        value: MANUAL
+                        displayText: Selected Customer
+                        value: SELECTED_CUSTOMER
                         isFile: true
-                        fileFieldName: customers.csv
+
+                      - id: 3
+                        displayText: Location Based
+                        value: LOCATION_BASED
+                        isFile: true
 
                   - category: EVERYONE
                     displayText: Everyone
@@ -260,26 +285,24 @@ paths:
                         displayText: Everyone
                         value: EVERYONE
                         isFile: false
-                        fileFieldName: null
 
                   - category: SPECIAL_RULE
                     displayText: Special Rules
                     items:
-                      - id: 3
+                      - id: 4
                         displayText: New User
                         value: NEW_USER
                         isFile: false
-                        fileFieldName: null
-                      - id: 4
+
+                      - id: 5
                         displayText: First Car Wash
                         value: FIRST_CAR_WASH
                         isFile: false
-                        fileFieldName: null
-                      - id: 5
+
+                      - id: 6
                         displayText: First Any Service
                         value: FIRST_ANY_SERVICE
                         isFile: false
-                        fileFieldName: null
 
                 message: Target audience options fetched successfully
 
@@ -405,16 +428,29 @@ paths:
         - Banner
       summary: Create a new banner
       description: |
-        Creates a new banner with image upload, category, vendor mapping, schedule time, priority, and audience targeting.
-        Owner should be "SHINR" or "VENDOR".
+        Creates a new banner with image upload, scheduling, priority, and audience targeting.
 
-        **Image Requirements:**
-        - Must be exactly **272 × 230 pixels**
-        - Allowed types: **PNG, JPG**
-        - Max size: **5MB**
+        **Important rules & behavior:**
+        - Banner is created with:
+          - `status` → **DRAFT**
+          - `reviewStatus` → **PENDING**
+        - OWNER must be `"SHINR"` or `"VENDOR"`
+        - If `vendorId` is provided, it must be a valid active vendor
+        - `startTime` is required
+        - `endTime` defaults to **2099-01-01** if not provided
+        - Audience mappings are created **only if `targetAudienceId` is provided**
+        - Dates must be valid date-time strings with timezone
+
+        ### Image Rules (Mandatory)
+        - Supported formats: PNG, JPG
+        - Required size: **272 × 230 px**
+        - Max size: **5 MB**
+        - Banner image is **required**
+
+        This endpoint accepts **multipart/form-data**.
 
       security:
-        - bearerAuth: []   # Admin access token required
+        - bearerAuth: []
 
       requestBody:
         required: true
@@ -427,6 +463,7 @@ paths:
                 - categoryId
                 - owner
                 - priority
+                - startTime
                 - bannerImage
               properties:
                 title:
@@ -444,16 +481,15 @@ paths:
 
                 vendorId:
                   type: integer
-                  nullable: true
                   example: 12
-                  description: Vendor ID if owner = "VENDOR"
+                  description: Required only when owner is VENDOR
 
                 targetAudienceId:
                   type: array
                   items:
                     type: integer
                   example: [1, 3]
-                  description: Audience config IDs (non-file-based only stored)
+                  description: Audience configuration IDs
 
                 targetValue:
                   type: string
@@ -462,31 +498,44 @@ paths:
                 priority:
                   type: integer
                   example: 1
-                  description: Display order of the banner
+                  description: Display sequence of the banner
 
                 startTime:
                   type: string
                   format: date-time
                   example: "2025-01-10T00:00:00+05:30"
-                  description: Start schedule. Defaults to now.
 
                 endTime:
                   type: string
                   format: date-time
                   example: "2025-01-20T23:59:59+05:30"
-                  description: End schedule. Defaults to **2099-01-01**.
+                  description: Defaults to 2099-01-01 if not provided
 
                 homePageView:
                   type: boolean
                   example: true
-                  description: Whether banner is shown on home page.
+                  description: Whether banner is shown on home page
 
                 bannerImage:
                   type: string
                   format: binary
                   description: |
-                    Banner image file.
-                    Must be **PNG/JPG**, max **5MB**, must be **272x230 px**.
+                    Required banner image.
+                    Must be PNG/JPG, max 5MB, exactly 272x230 px.
+
+                selectedCustomer:
+                  type: string
+                  format: binary
+                  description: |
+                    File for manually selected users.
+                    Required only if selected-user audience config is used.
+
+                locationFile:
+                  type: string
+                  format: binary
+                  description: |
+                    File for manual location-based targeting.
+                    Required only if location-based audience config is used.
 
       responses:
         "200":
@@ -495,67 +544,66 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  message:
-                    type: string
-                    example: Banner Created Successfully
+                example:
+                  success: true
+                  message: "Banner Created Successfully"
                   data:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 101
-                      title:
-                        type: string
-                        example: "Winter Festival Offer"
-                      categoryId:
-                        type: integer
-                        example: 3
-                      owner:
-                        type: string
-                        example: "SHINR"
-                      vendorId:
-                        type: integer
-                        example: 12
-                      priority:
-                        type: integer
-                        example: 1
-                      startTime:
-                        type: string
-                        format: date-time
-                      endTime:
-                        type: string
-                        format: date-time
-                      status:
-                        type: string
-                        example: "DRAFT"
-                      reviewStatus:
-                        type: string
-                        example: "PENDING"
+                    id: 101
+                    title: "Winter Festival Offer"
+                    categoryId: 3
+                    owner: "SHINR"
+                    vendorId: 12
+                    priority: 1
+                    startTime: "2025-01-10T00:00:00+05:30"
+                    endTime: "2099-01-01T00:00:00Z"
+                    status: "DRAFT"
+                    reviewStatus: "PENDING"
 
         "400":
-          $ref: "#/components/responses/BadRequestError"
+          description: Invalid request or business rule violation
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Image must be exactly 272 × 230 pixels."
 
         "401":
-          $ref: "#/components/responses/UnauthorizedError"
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
 
         "500":
-          $ref: "#/components/responses/InternalServerError"
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to create banners"
 
   /banner/update-banner:
     put:
       tags:
         - Banner
-      summary: Update banner details,
+      summary: Update banner details
       description: |
-        Updates an existing banner.OWNER Should be "SHINR" or "VENDOR".
+        Updates an existing banner. Only the fields provided will be updated.
 
-        - **bannerId** and **targetAudienceId** are required.
-        - OWNER Should be "SHINR" or "VENDOR".
-        - If  owner = VENDOR , then **vendorId is required**.
-        - If owner = SHINR, **vendorId must not be sent**.
-        -  targetAudienceId must be an array with at least one item.
-        - Dates ( startTime ,  endTime ) must be valid date with Timezone.
+        **Important rules & behavior:**
+        - **bannerId is required**
+        - OWNER must be `"SHINR"` or `"VENDOR"`
+        - If `vendorId` is provided, it must be a valid active vendor
+        - Expired banners cannot be edited
+        - Audience mappings will be replaced **only if `targetAudienceId` is provided**
+        - Dates (`startTime`, `endTime`) must be valid date-time strings with timezone
 
         ### Image Rules (if uploading a new banner image)
         - Supported formats: PNG, JPG
@@ -565,7 +613,7 @@ paths:
         This endpoint accepts **multipart/form-data**.
 
       security:
-        - bearerAuth: []   # Admin access token required
+        - bearerAuth: []
 
       requestBody:
         required: true
@@ -573,49 +621,83 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - bannerId
               properties:
                 bannerId:
-                  type: string
-                  example: "12"
+                  type: integer
+                  example: 12
+                  description: ID of the banner to update
+
                 title:
                   type: string
                   example: "Diwali Offer"
+
                 categoryId:
-                  type: number
+                  type: integer
                   example: 3
+
                 owner:
                   type: string
                   enum: ["SHINR", "VENDOR"]
                   example: "VENDOR"
+
                 vendorId:
-                  type: number
+                  type: integer
                   example: 5
+                  description: Required only when owner is VENDOR
+
                 targetAudienceId:
                   type: array
                   items:
-                    type: number
+                    type: integer
                   example: [1, 2, 5]
+                  description: Audience configuration IDs
+
                 targetValue:
                   type: string
                   example: "MAHARASHTRA"
+
                 priority:
-                  type: number
+                  type: integer
                   example: 1
+                  description: Display sequence of the banner
+
                 startTime:
                   type: string
                   format: date-time
                   example: "2025-12-04T00:00:00+05:30"
+
                 endTime:
                   type: string
                   format: date-time
                   example: "2025-12-10T23:59:59+05:30"
+
                 homePageView:
                   type: boolean
                   example: true
+
                 bannerImage:
                   type: string
                   format: binary
-                  description: Must be 272x230 PNG/JPG, max 5MB.
+                  description: |
+                    Optional banner image.
+                    Must be PNG/JPG, max 5MB, exactly 272x230 px.
+
+                selectedCustomer:
+                  type: string
+                  format: binary
+                  description: |
+                    File for manually selected users.
+                    Required only if selected-user audience config is used.
+
+                locationFile:
+                  type: string
+                  format: binary
+                  description: |
+                    File for manual location-based targeting.
+                    Required only if location-based audience config is used.
+
       responses:
         "200":
           description: Banner updated successfully
@@ -630,7 +712,7 @@ paths:
                     updated: true
 
         "400":
-          description: Invalid payload or constraints failed
+          description: Invalid request or business rule violation
           content:
             application/json:
               schema:
@@ -639,8 +721,18 @@ paths:
                   success: false
                   message: "Invalid banner id"
 
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
         "500":
-          description: Server error
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -1906,6 +1998,12 @@ paths:
         Returns the list of target audience categories and their items
         used in reward configuration.
 
+        ### Notes
+        - Target audiences are grouped by **category**
+        - **MANUAL** category always requires additional input
+          - `isFile = true`
+
+
       security:
         - bearerAuth: []
 
@@ -1919,8 +2017,8 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  message:
-                    type: string
+                    example: true
+
                   data:
                     type: array
                     items:
@@ -1928,9 +2026,12 @@ paths:
                       properties:
                         category:
                           type: string
-                          description: One of the TargetAudience constants
+                          example: MANUAL
+
                         displayText:
                           type: string
+                          example: Manual
+
                         items:
                           type: array
                           items:
@@ -1938,16 +2039,26 @@ paths:
                             properties:
                               id:
                                 type: integer
+                                example: 9
+
                               displayText:
                                 type: string
+                                example: Selected Customer
+
                               value:
                                 type: string
+                                example: SELECTED_CUSTOMER
+
                               isFile:
                                 type: boolean
-                              fileFieldName:
-                                type: string
-                                nullable: true
-                                description: File field name required when isFile is true
+                                example: true
+                                description: |
+                                  Indicates whether this target audience
+                                  requires additional input configuration
+
+                  message:
+                    type: string
+                    example: Target audience options fetched successfully
 
               example:
                 success: true
@@ -1956,10 +2067,16 @@ paths:
                     displayText: Manual
                     items:
                       - id: 2
-                        displayText: Manual
-                        value: MANUAL
+                        displayText: Selected Customer
+                        value: SELECTED_CUSTOMER
                         isFile: true
-                        fileFieldName: customers.csv
+
+
+                      - id: 3
+                        displayText: Location Based
+                        value: LOCATION_BASED
+                        isFile: true
+
 
                   - category: EVERYONE
                     displayText: Everyone
@@ -1968,26 +2085,28 @@ paths:
                         displayText: Everyone
                         value: EVERYONE
                         isFile: false
-                        fileFieldName: null
+
 
                   - category: SPECIAL_RULE
                     displayText: Special Rules
                     items:
-                      - id: 3
+                      - id: 4
                         displayText: New User
                         value: NEW_USER
                         isFile: false
-                        fileFieldName: null
-                      - id: 4
+
+
+                      - id: 5
                         displayText: First Car Wash
                         value: FIRST_CAR_WASH
                         isFile: false
-                        fileFieldName: null
-                      - id: 5
+
+
+                      - id: 6
                         displayText: First Any Service
                         value: FIRST_ANY_SERVICE
                         isFile: false
-                        fileFieldName: null
+
 
                 message: Target audience options fetched successfully
 
@@ -2003,22 +2122,32 @@ paths:
         - Reward
       summary: Create a new reward
       description: |
-        Creates a new reward with full validation.
+        Creates a new reward with offer, contribution, service mapping, and audience targeting.
 
-        ### Conditional Rules
-        - **vendorId** is required only when `owner = VENDOR` (Owner constants: SHINR, VENDOR)
-        - **percentage** is required only when `offerType = CASHBACK | PERCENTAGE` (OfferType constants: PERCENTAGE, AMOUNT, CASHBACK)
-        - **shinrPercentage & vendorPercentage** are required only when `contribution = SHARE` (Contribution constants: PLATFORM, VENDOR, SHARE)
-        - **maxUsagePeriodValue** is required unless `maxUsagePeriod = OVERALL` (MaxUsagePeriod constants: HOUR, DAY, MONTH, OVERALL)
-        - **endDate** must be greater than `startDate`
-        - **serviceCategoryIds** is an **array of service category IDs**  
-          Each ID must reference an active service category
+        **Important behavior & rules:**
+        - Reward is created with `isActive = true`
+        - `endDate` defaults to **2099-01-01** if not provided
+        - OWNER must be `"SHINR"` or `"VENDOR"`
+        - If `vendorId` is provided, it must be a valid active vendor
+        - Offer, contribution, services, and audiences are created as separate mappings
+        - Audience mappings are created **only if `targetAudienceIds` is provided**
+        - Dates must be valid date-time strings
 
-        - **targetAudienceIds** is an **array of target audience IDs**  
-          Each ID must reference an active target audience in the system  
-          Target audience categories are derived from **TargetAudience constants**:  
-          `MANUAL`, `EVERYONE`, `SPECIAL_RULE`
-        - **status** must be one of RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+        ### Conditional Rules (Validated in Backend)
+        - `percentage` is required only when `offerType = PERCENTAGE | CASHBACK`
+        - `shinrPercentage` and `vendorPercentage` are required only when `contribution = SHARE`
+        - `maxUsagePeriodValue` is required unless `maxUsagePeriod = OVERALL`
+        - `endDate` must be greater than `startDate`
+        - `serviceCategoryIds` must reference active services
+        - `targetAudienceIds` must reference active target audience configs
+
+        ### File Upload (Optional)
+        - **selectedCustomer** → required when MANUAL user selection is used
+        - **locationFile** → required when MANUAL location targeting is used
+
+        This endpoint accepts **multipart/form-data**.
+
+        This endpoint accepts **multipart/form-data**.
 
       security:
         - bearerAuth: []
@@ -2026,7 +2155,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               required:
@@ -2044,7 +2173,6 @@ paths:
                 - minOrderValue
                 - codeGeneration
                 - priority
-                - targetAudienceIds
                 - startDate
                 - totalGrabLimit
                 - contribution
@@ -2052,7 +2180,6 @@ paths:
                 - maxUsagePeriod
                 - status
               properties:
-
                 owner:
                   type: string
                   enum: [SHINR, VENDOR]
@@ -2062,7 +2189,7 @@ paths:
                   type: integer
                   nullable: true
                   example: 5
-                  description: Required when owner is VENDOR
+                  description: Required only when owner is VENDOR
 
                 title:
                   type: string
@@ -2089,6 +2216,7 @@ paths:
                   items:
                     type: integer
                   example: [1, 3, 5]
+                  description: Must reference active services
 
                 displayCouponPage:
                   type: boolean
@@ -2130,9 +2258,7 @@ paths:
                   items:
                     type: integer
                   example: [2, 4]
-                  description: |
-                    IDs of target audiences. Must reference active target audiences in the system.
-                    Categories are derived from **TargetAudience constants**: MANUAL, EVERYONE, SPECIAL_RULE.
+                  description: Must reference active reward audience configs
 
                 startDate:
                   type: string
@@ -2144,6 +2270,7 @@ paths:
                   format: date-time
                   nullable: true
                   example: "2026-12-31T23:59:59Z"
+                  description: Defaults to 2099-01-01 if not provided
 
                 totalGrabLimit:
                   type: integer
@@ -2186,6 +2313,16 @@ paths:
                   enum: [DRAFT, ACTIVE]
                   example: DRAFT
 
+                selectedCustomer:
+                  type: string
+                  format: binary
+                  description: Required only for Selected_Customer in  MANUAL audience targeting.CSV/Excel file for manual user selection
+
+                locationFile:
+                  type: string
+                  format: binary
+                  description: Required only for location-based in MANUAL audience targeting.CSV/Excel file for manual location targeting
+
       responses:
         "200":
           description: Reward created successfully
@@ -2194,31 +2331,121 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
+
                   message:
                     type: string
                     example: reward Created Succefully
+
                   data:
                     type: object
                     properties:
                       id:
                         type: integer
                         example: 15
+
                       title:
                         type: string
                         example: New Year Cashback
+
+                      description:
+                        type: string
+                        example: Get cashback on every order
+
+                      summary:
+                        type: string
+                        example: Flat cashback offer
+
+                      sideText:
+                        type: string
+                        example: Limited time only
+
+                      categoryId:
+                        type: integer
+                        example: 3
+
+                      displaySequence:
+                        type: integer
+                        example: 1
+
+                      owner:
+                        type: string
+                        enum: [SHINR, VENDOR]
+                        example: SHINR
+
+                      vendorId:
+                        type: integer
+                        nullable: true
+                        example: null
+
+                      dispCouponPage:
+                        type: boolean
+                        example: true
+
+                      dispVendorPage:
+                        type: boolean
+                        example: false
+
+                      singleCode:
+                        type: string
+                        example: AUTO
+
+                      minOrderValue:
+                        type: number
+                        example: 500
+
+                      startDate:
+                        type: string
+                        format: date-time
+                        example: "2026-01-01T00:00:00Z"
+
+                      endDate:
+                        type: string
+                        format: date-time
+                        example: "2099-01-01T00:00:00Z"
+
+                      grabLimit:
+                        type: integer
+                        example: 1000
+
+                      maxUsage:
+                        type: integer
+                        example: 1
+
+                      maxUsagePeriod:
+                        type: string
+                        enum: [HOUR, DAY, MONTH, OVERALL]
+                        example: MONTH
+
+                      maxUsagePeriodValue:
+                        type: integer
+                        nullable: true
+                        example: 6
+
                       status:
                         type: string
+                        enum: [DRAFT, ACTIVE]
                         example: DRAFT
 
+                      isActive:
+                        type: boolean
+                        example: true
+
+                      createdBy:
+                        type: integer
+                        example: 101
+
         "400":
-          description: Validation error
+          description: Validation or business rule error
           content:
             application/json:
               examples:
                 VendorMissing:
                   value:
                     success: false
-                    message: vendorId is required when owner is vendor
+                    message: vendorId is required when owner is VENDOR
                 PercentageMissing:
                   value:
                     success: false
@@ -2240,24 +2467,25 @@ paths:
         - Reward
       summary: Update an existing reward
       description: |
-        Updates an existing reward.
+        Updates an existing reward (partial update supported).
 
         ### Validation & Conditional Rules
         - **rewardId** is mandatory
-        - All other fields are optional (partial update supported)
-        - **vendorId** is required only when `owner = VENDOR` (Owner constants: SHINR, VENDOR)
-        - **percentage** is required only when `offerType = CASHBACK | PERCENTAGE` (OfferType constants: PERCENTAGE, AMOUNT, CASHBACK)
-        - **shinrPercentage & vendorPercentage** are required only when `contribution = SHARE` (Contribution constants: PLATFORM, VENDOR, SHARE)
-        - **maxUsagePeriodValue** is required unless `maxUsagePeriod = OVERALL` (MaxUsagePeriod constants: HOUR, DAY, MONTH, OVERALL)
-        - **endDate** must be greater than `startDate` (if both are provided)
-        - **serviceCategoryIds** is an **array of service category IDs**  
-          Each ID must reference an active service category
+        - All other fields are optional
+        - **vendorId** is required when `owner = VENDOR`
+        - **percentage** is required when `offerType = CASHBACK | PERCENTAGE`
+        - **shinrPercentage & vendorPercentage** are required when `contribution = SHARE`
+        - **maxUsagePeriodValue** is required unless `maxUsagePeriod = OVERALL`
+        - **endDate** must be greater than `startDate`
+        - **serviceCategoryIds** must reference active services
+        - **targetAudienceIds** must reference active target audience configs
+        - **status** must be one of: `DRAFT`, `ACTIVE`
 
-        - **targetAudienceIds** is an **array of target audience IDs**  
-          Each ID must reference an active target audience in the system  
-          Target audience categories are derived from **TargetAudience constants**:  
-          `MANUAL`, `EVERYONE`, `SPECIAL_RULE`
-        - **status** must be one of RewardStatus constants: DRAFT, ACTIVE, EXPIRED
+        ### File Upload (Optional)
+        - **selectedCustomer** → required when MANUAL user selection is used
+        - **locationFile** → required when MANUAL location targeting is used
+
+        This endpoint accepts **multipart/form-data**.
 
       security:
         - bearerAuth: []
@@ -2265,7 +2493,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               required:
@@ -2283,7 +2511,6 @@ paths:
 
                 vendorId:
                   type: integer
-                  nullable: true
                   example: 5
                   description: Required when owner is VENDOR
 
@@ -2328,7 +2555,6 @@ paths:
 
                 percentage:
                   type: number
-                  nullable: true
                   example: 10
                   description: Required when offerType is CASHBACK or PERCENTAGE
 
@@ -2362,7 +2588,6 @@ paths:
                 endDate:
                   type: string
                   format: date-time
-                  nullable: true
                   example: "2026-06-30T23:59:59Z"
 
                 totalGrabLimit:
@@ -2376,13 +2601,11 @@ paths:
 
                 shinrPercentage:
                   type: number
-                  nullable: true
                   example: 60
                   description: Required when contribution is SHARE
 
                 vendorPercentage:
                   type: number
-                  nullable: true
                   example: 40
                   description: Required when contribution is SHARE
 
@@ -2397,7 +2620,6 @@ paths:
 
                 maxUsagePeriodValue:
                   type: integer
-                  nullable: true
                   example: 6
                   description: Required unless maxUsagePeriod is OVERALL
 
@@ -2406,6 +2628,16 @@ paths:
                   enum: [DRAFT, ACTIVE]
                   example: ACTIVE
 
+                selectedCustomer:
+                  type: string
+                  format: binary
+                  description: Required only for Selected_Customer in MANUAL audience targeting.CSV/Excel file for manual user selection
+
+                locationFile:
+                  type: string
+                  format: binary
+                  description: Required only for location-based in MANUAL audience targeting.CSV/Excel file for manual location targeting
+
       responses:
         "200":
           description: Reward updated successfully
@@ -2413,22 +2645,9 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  message:
-                    type: string
-                    example: reward Updated Succefully
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 12
-                      title:
-                        type: string
-                        example: Updated Cashback Offer
-                      status:
-                        type: string
-                        example: ACTIVE
+                example:
+                  success: true
+                  message: reward Updated Succefully
 
         "400":
           description: Validation or business rule error
