@@ -16,6 +16,12 @@ tags:
     description: Profile update and user-related operations
   - name: Vehicle
     description: Vehicle-related endpoints for fetching car details
+  - name: Banner
+    description: Banner-related endpoints.    
+  - name: Reward
+    description: Reward-related endpoints.
+  - name: Service
+    description: Service-related endpoints.
 
 
 paths:
@@ -574,6 +580,205 @@ paths:
                 $ref: '#/components/schemas/SuccessCarBrandsResponse'
         "401":
           $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /banner-list:
+    get:
+      tags:
+        - Banner
+      summary: Fetch eligible banners for home page
+      description: |
+        Returns a list of active and approved banners filtered by audience rules.
+        Eligibility rules include:
+        - EVERYONE
+        - SELECTED_CUSTOMER
+        - LOCATION_BASED (within 15km radius)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device ID
+        - in: query
+          name: homePageView
+          required: true
+          schema:
+            type: string
+            enum: [true, false]
+          description: Indicates whether banners are shown on home page
+      responses:
+        "200":
+          description: Banner List fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Banner List fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        title:
+                          type: string
+                          example: "Car Wash Offer"
+                        imageUrl:
+                          type: string
+                          example: "https://cdn.app.com/banner.jpg"
+                        targetValue:
+                          type: string
+                          example: "https://app.com/offers"
+                        displaySequence:
+                          type: integer
+                          example: 1
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                        homePageView:
+                          type: boolean
+                          example: true
+        "400":
+          $ref: '#/components/responses/BadRequestError'
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /reward-list:
+    get:
+      tags:
+        - Reward
+      summary: Fetch eligible rewards for the user
+      description: |
+        Returns a list of active rewards eligible for the logged-in user.
+        Eligibility is determined based on audience rules:
+        - EVERYONE
+        - SELECTED_CUSTOMER
+        - LOCATION_BASED (within 15km radius of user's default address)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device ID
+      responses:
+        "200":
+          description: Reward List fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Reward List fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 10
+                        title:
+                          type: string
+                          example: "Flat 20% Off"
+                        description:
+                          type: string
+                          example: "Get flat 20% discount on car wash"
+                        summary:
+                          type: string
+                          example: "20% OFF"
+                        singleCode:
+                          type: string
+                          example: "CAR20"
+                        sideText:
+                          type: string
+                          example: "Limited time offer"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "500":
+          $ref: '#/components/responses/InternalServerError'
+
+  /list-service:
+    get:
+      tags:
+        - Service
+      summary: Fetch active services list
+      description: |
+        Returns a paginated list of active services.
+        Services are ordered by display sequence.
+        By default, a maximum of 6 services are returned for initial listing.
+        When the user clicks on "View All", this API returns all active services
+        by requesting with a higher limit or without pagination constraints.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 6
+            maximum: 6
+          description: Number of records per page (max 6)
+      responses:
+        "200":
+          description: Service list fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Service list fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        displayName:
+                          type: string
+                          example: "Car Wash"
+                        value:
+                          type: string
+                          example: "CAR_WASH"
+                        image:
+                          type: string
+                          nullable: true
+                          example: "https://cdn.app.com/services/carwash.png"
+                  total:
+                    type: integer
+                    example: 10
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 6
         "500":
           $ref: '#/components/responses/InternalServerError'
 
