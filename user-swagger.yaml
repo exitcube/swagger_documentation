@@ -727,7 +727,15 @@ paths:
         By default, a maximum of 6 services are returned for initial listing.
         When the user clicks on "View All", this API returns all active services
         by requesting with a higher limit or without pagination constraints.
+      security:
+        - bearerAuth: []
       parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Unique device ID
         - in: query
           name: page
           schema:
