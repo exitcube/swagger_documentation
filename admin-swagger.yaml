@@ -8,14 +8,20 @@ servers:
   - url: https://shinr-user-mgmt.onrender.com/
 
 tags:
+  - name: Public
+    description: This is a **section**, used on the website.  
   - name: Vehicle
     description: Vehicle-related endpoints for fetching car details
   - name: Banner
     description: Banner management endpoints
+  - name: Reward
+    description: Reward management endpoints
   - name: Admin
     description: Admin authentication and management endpoints
   - name: Vendor
     description: Vendor management endpoints
+  - name: Service
+    description: Service management endpoints    
 
 
 paths:
@@ -1603,6 +1609,84 @@ paths:
                     type: string
                     example: Failed to fetch admin users. Please try again later.
 
+  /admin/generate-refreshToken:
+    post:
+      tags:
+        - Admin
+      summary: Refresh admin access token
+      description: |
+        Generates a new access token and refresh token for an active admin user.
+
+        **Important rules & behavior:**
+        - Requires a valid `refreshToken` in request body
+        - Validates:
+          - Admin exists and is active
+          - Refresh token exists, matches, and is in ACTIVE state
+        - Marks old refresh token as **USED** and inactive
+        - Creates a new refresh token record and generates:
+          - `accessToken` → short-lived
+          - `refreshToken` → long-lived (default expiry 60 days)
+        - Returns both tokens in response
+        - If validation fails → returns 400 with appropriate error
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  description: "Valid admin refresh token"
+
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Token refreshed successfully."
+                  data:
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "400":
+          description: Validation or token error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid refresh token."
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to refresh token. Please login again."
+
   /banner/{id}:
     get:
       tags:
@@ -1911,15 +1995,19 @@ paths:
   /rewards/service-listing:
     get:
       tags:
-        - Reward
+        - Service
       summary: Get reward service list
       description: |
-        Fetches a paginated list of active services used in rewards.
+        Fetches a paginated list of active services.
 
+        **Usage:**
+        - Used in the **Service section** for service selection
+        - Used in the **Reward section** while creating or editing rewards
+
+        **Behavior:**
         - Search matches **service display name**
         - Only services with `isActive = true` are returned
         - Results are sorted by service ID (ASC)
-        - Used while creating or editing rewards
 
       security:
         - bearerAuth: []
@@ -4366,6 +4454,821 @@ paths:
 
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+  /service/create-service:
+    post:
+      tags:
+        - Service
+      summary: Create a new service
+      description: |
+        Creates a new service with image upload and display configuration.
+
+        **Important rules & behavior:**
+        - Service is created with:
+          - `status` → **ACTIVE**
+          - `isActive` → **true**
+        - `displaySequence` must be greater than or equal to 1
+        - `name` and `displayName` must be maximum 100 characters
+        - `description` can be empty or null
+        - Image is mandatory
+
+        ### Image Rules (Mandatory)
+        - Supported formats: PNG, JPG
+        - Required size: **193 × 239 px**
+        - Max size: **5 MB**
+        - Service image is required
+
+        This endpoint accepts **multipart/form-data**.
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - displayName
+                - displaySequence
+                - serviceImage
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                  example: "CAR_WASH"
+
+                displayName:
+                  type: string
+                  maxLength: 100
+                  example: "Car Wash Service"
+
+                description:
+                  type: string
+                  example: "Complete exterior and interior car cleaning service"
+                  description: Can be empty or null
+
+                displaySequence:
+                  type: integer
+                  minimum: 1
+                  example: 1
+                  description: Determines display order of the service
+
+                serviceImage:
+                  type: string
+                  format: binary
+                  description: |
+                    Required service image.
+                    Must be PNG/JPG, max 5MB, exactly 193x239 px.
+
+      responses:
+        "200":
+          description: Service created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Service created successfully"
+                  data:
+                    id: 12
+                    name: "CAR_WASH"
+                    displayName: "Car Wash Service"
+                    description: "Complete exterior and interior cleaning"
+                    displaySequence: 1
+                    status: "ACTIVE"
+                    isActive: true
+                    createdBy: 5
+
+        "400":
+          description: Invalid request or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Image must be exactly 193x239 pixels"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to ADD service"
+
+
+  /service/update-service:
+    put:
+      tags:
+        - Service
+      summary: Update an existing service
+      description: |
+        Updates an existing active service.
+
+        **Important rules & behavior:**
+        - `serviceId` is required
+        - Only services with `isActive = true` can be updated
+        - If service is not found → returns "Invalid service id"
+        - All fields except `serviceId` are optional
+        - If `serviceImage` is provided:
+          - Old image will be deactivated
+          - New image will be uploaded and linked
+        - `displaySequence` must be greater than or equal to 1
+        - `status` must be either:
+          - **DRAFT**
+          - **ACTIVE**
+
+        ### Image Rules (If Provided)
+        - Supported formats: PNG, JPG
+        - Required size: **193 × 239 px**
+        - Max size: **5 MB**
+
+        This endpoint accepts **multipart/form-data**.
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - serviceId
+              properties:
+                serviceId:
+                  type: integer
+                  example: 12
+
+                displayName:
+                  type: string
+                  maxLength: 100
+                  example: "Premium Car Wash Service"
+
+                description:
+                  type: string
+                  example: "Updated description for service"
+                  description: Can be empty or null
+
+                displaySequence:
+                  type: integer
+                  minimum: 1
+                  example: 2
+
+                status:
+                  type: string
+                  enum: ["DRAFT", "ACTIVE"]
+                  example: "ACTIVE"
+
+                serviceImage:
+                  type: string
+                  format: binary
+                  description: |
+                    Optional service image.
+                    Must be PNG/JPG, max 5MB, exactly 193x239 px.
+
+      responses:
+        "200":
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Service updated successfully"
+                  data:
+                    updated: true
+
+        "400":
+          description: Invalid request or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid service id"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to Update service"
+
+  /service/delete-service/{id}:
+    delete:
+      tags:
+        - Service
+      summary: Delete a service
+      description: |
+        Soft deletes an existing active service.
+
+        **Important rules & behavior:**
+        - Only services with `isActive = true` can be deleted
+        - If service does not exist → returns "Invalid service id"
+        - This is a soft delete:
+          - `isActive` → set to **false**
+          - `status` → set to **DRAFT**
+          - `removedBy` → set to current admin ID
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the service to delete
+          schema:
+            type: integer
+            example: 12
+
+      responses:
+        "200":
+          description: Service deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Service deleted successfully"
+                  data:
+                    deleted: true
+
+        "400":
+          description: Invalid service ID
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid service id"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to delete service"
+
+  /service/list-service:
+    post:
+      tags:
+        - Service
+      summary: List services
+      description: |
+        Fetches a paginated list of active services.
+
+        **Important rules & behavior:**
+        - Only services with `isActive = true` are returned
+        - Supports optional search by `displayName`
+        - Search term must be at least 3 characters
+        - Supports filtering by multiple `status` values
+        - Supports pagination
+        - Supports sorting by `displaySequence`
+
+        **Default values:**
+        - `page` → 1
+        - `limit` → 10
+        - `sortOrder` → ASC
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Search by display name (minimum 3 characters)
+          schema:
+            type: string
+            minLength: 3
+            example: "Wash"
+
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: array
+                  description: Filter by service status
+                  items:
+                    type: string
+                    enum: ["DRAFT", "ACTIVE"]
+                  example: ["ACTIVE"]
+
+                sortOrder:
+                  type: string
+                  enum: ["ASC", "DESC"]
+                  default: "ASC"
+                  example: "ASC"
+                  description: Sort by displaySequence
+
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  example: 1
+
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  example: 10
+
+      responses:
+        "200":
+          description: Services fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Services fetched successfully"
+                  data:
+                    items:
+                      - id: 1
+                        displayName: "Car Wash"
+                        status: "ACTIVE"
+                        imageId: "https://cdn.example.com/service1.png"
+                      - id: 2
+                        displayName: "Interior Cleaning"
+                        status: "DRAFT"
+                        imageId: "https://cdn.example.com/service2.png"
+                    total: 25
+                    page: 1
+                    limit: 10
+                    totalPages: 3
+
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Search term must be at least 3 characters long"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch services"
+
+
+  /customer/list-customer:
+    post:
+      tags:
+        - Customer
+      summary: List customers
+      description: |
+        Fetches a paginated list of active customers.
+
+        **Important rules & behavior:**
+        - Only users with `isActive = true` are returned
+        - Results are sorted by `id` in ascending order
+        - Supports filtering by `lastActive` date
+        - When `lastActive` is provided, customers active within that full day (00:00:00 to 23:59:59 UTC) are returned
+
+        **Default values:**
+        - `page` → 1
+        - `limit` → 10
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lastActive:
+                  type: string
+                  format: date
+                  example: "2025-03-01"
+                  description: |
+                    Filter customers by last active date.
+                    Must be a valid date (YYYY-MM-DD).
+
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  example: 1
+
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  example: 10
+
+      responses:
+        "200":
+          description: Customers fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Customers fetched successfully"
+                  data:
+                    items:
+                      - id: 1
+                        name: "John Doe"
+                        email: "john@example.com"
+                        mobile: "9876543210"
+                        lastActive: "2025-03-01T10:15:30Z"
+                        registeredOn: "2024-12-10T08:00:00Z"
+                        isBlocked: false
+                      - id: 2
+                        name: "Jane Smith"
+                        email: "jane@example.com"
+                        mobile: "9123456780"
+                        lastActive: "2025-03-01T14:20:10Z"
+                        registeredOn: "2024-11-15T09:30:00Z"
+                        isBlocked: true
+                    total: 50
+                    page: 1
+                    limit: 10
+                    totalPages: 5
+
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Last active must be a valid date"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch customers"
+
+  /customer/single-customer/{id}:
+    get:
+      tags:
+        - Customer
+      summary: Get single customer
+      description: |
+        Fetches details of a single active customer by ID.
+
+        **Important rules & behavior:**
+        - Only users with `isActive = true` can be fetched
+        - If customer does not exist → returns 404 "User not found"
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the customer
+          schema:
+            type: integer
+            example: 1
+
+      responses:
+        "200":
+          description: Customer fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Customer fetched successfully"
+                  data:
+                    id: 1
+                    name: "John Doe"
+                    email: "john@example.com"
+                    mobile: "9876543210"
+                    lastActive: "2025-03-01T10:15:30Z"
+                    registeredOn: "2024-12-10T08:00:00Z"
+
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "User not found"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch user"
+
+  /customer/block-customer/{id}:
+    post:
+      tags:
+        - Customer
+      summary: Block a customer
+      description: |
+        Blocks an active customer.
+
+        **Important rules & behavior:**
+        - Only users with `isActive = true` can be blocked
+        - If customer does not exist → returns 404 "User not found"
+        - If customer is already blocked → returns 400 "User is already blocked"
+        - Sets `isBlocked = true` after successful operation
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the customer to block
+          schema:
+            type: integer
+            example: 1
+
+      responses:
+        "200":
+          description: Customer blocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Customer blocked successfully"
+                  data:
+                    updated: true
+
+        "400":
+          description: Customer is already blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "User is already blocked"
+
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "User not found"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to block user"
+
+  /enquiry/create-enquiry:
+    post:
+      tags:
+        - Public
+      summary: Create a new enquiry
+      description: |
+        Creates a new enquiry with an owner and one or more organizations.
+
+        **Important rules & behavior:**
+        - This is a **public section**, used on the website
+        - Owner must have `name` and `mobile` (email optional)
+        - Organizations must have at least one entry
+        - Each organization must have a unique mobile number
+        - If any organization mobile already exists → request is rejected
+        - Supports multiple organizations per enquiry
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - owner
+                - organizations
+              properties:
+                owner:
+                  type: object
+                  required:
+                    - name
+                    - mobile
+                  properties:
+                    name:
+                      type: string
+                      example: "John Doe"
+                    email:
+                      type: string
+                      format: email
+                      example: "john@example.com"
+                    mobile:
+                      type: string
+                      example: "9876543210"
+
+                organizations:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - buisnessName
+                      - mobile
+                    properties:
+                      buisnessName:
+                        type: string
+                        example: "Acme Corp"
+                      email:
+                        type: string
+                        format: email
+                        example: "info@acme.com"
+                      mobile:
+                        type: string
+                        example: "9123456780"
+                      address:
+                        type: string
+                        example: "123 Main Street"
+                      country:
+                        type: string
+                        example: "India"
+                      city:
+                        type: string
+                        example: "Bangalore"
+                      state:
+                        type: string
+                        example: "Karnataka"
+                      pinCode:
+                        type: string
+                        example: "560001"
+                      businessType:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Retail", "Wholesale"]
+                      buisnessExperience:
+                        type: string
+                        example: "5 years"
+                      additionalInfo:
+                        type: string
+                        example: "Looking for collaboration"
+
+      responses:
+        "200":
+          description: Enquiry created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Enquiry created successfully"
+                  data:
+                    ownerId: 101
+                    organizationIds: [201, 202]
+
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Organization mobile numbers must be unique"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to create enquiry"
+
+
 
 
 components:
