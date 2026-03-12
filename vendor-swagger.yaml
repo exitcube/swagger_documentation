@@ -1,0 +1,559 @@
+openapi: 3.0.0
+info:
+  title: Shinr User Management API
+  version: "1.0.0"
+  description: API documentation for login and OTP verification
+
+servers:
+  - url: https://shinr-user-mgmt.onrender.com/
+
+
+tags:
+  - name: Vendor
+    description: Vendor management endpoints
+  - name: Vendor Organization
+    description: Vendor Organization management endpoints
+
+
+
+paths:
+
+  /vendor/login:
+    post:
+      tags:
+        - Vendor
+      summary: Vendor login
+      description: |
+        Authenticates a vendor using **vendorCode** and **password**.
+
+        **Important rules & behavior:**
+        - Vendor must exist and have `isActive = true`
+        - If vendor does not exist → **404**
+        - If vendor account status is **BLOCKED** → **403**
+        - Password is validated using bcrypt
+        - On successful login:
+          - A new vendor token record is created
+          - A new **accessToken** and **refreshToken** are generated
+          - Refresh token expiry defaults to **60 days**
+        - Both tokens are returned in the response
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorCode
+                - password
+              properties:
+                vendorCode:
+                  type: string
+                  example: "VEND12345"
+                  description: Unique vendor code assigned to the vendor
+
+                password:
+                  type: string
+                  example: "StrongPassword123"
+                  description: Vendor account password
+
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Login Successfull"
+                  data:
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "401":
+          description: Invalid password
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid password."
+
+        "403":
+          description: Vendor account blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Your account is currently blocked. Please contact support for more information."
+
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Vendor not found."
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Login failed."
+
+  /vendor/generate-refreshToken:
+    post:
+      tags:
+        - Vendor
+      summary: Refresh vendor access token
+      description: |
+        Generates a new **access token** and **refresh token** for an authenticated vendor.
+
+        **Important rules & behavior:**
+        - Requires a valid **refreshToken** in the request body
+        - Verifies the refresh token and extracts vendor identity
+        - Vendor must exist and have `isActive = true`
+        - If vendor account status is **BLOCKED** → request is rejected
+        - Refresh token must:
+          - Exist in database
+          - Match the stored token
+          - Be in **ACTIVE** state
+        - Old refresh token is marked as **USED**
+        - A new token record is created and new tokens are generated
+        - Refresh token expiry defaults to **60 days**
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  description: Valid vendor refresh token
+
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Token refreshed successfully."
+                  data:
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "401":
+          description: Invalid or mismatched refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Invalid refresh token."
+
+        "403":
+          description: Vendor account blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Your account is currently blocked. Please contact support for more information."
+
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Vendor not found."
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to refresh token. Please login again."
+
+  /vendorOrg/login/otp:
+    post:
+      tags:
+        - Vendor Organization
+      summary: Generate OTP for vendor organization login
+      description: |
+        Generates a **one-time password (OTP)** for vendor organization login using the registered **mobile number**.
+
+        **Important rules & behavior:**
+        - Mobile number must be registered with an active vendor organization account
+        - If the mobile number is not registered → **400 error**
+        - If the vendor organization account is **BLOCKED** → **403 error**
+        - On successful request:
+          - OTP is generated
+          - OTP record is stored in the database
+          - An **otpToken** is generated for verifying the OTP in the next step
+        - The response only returns **otpToken** (OTP itself is normally sent via SMS)
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mobile
+              properties:
+                mobile:
+                  type: string
+                  example: "9876543210"
+                  description: Registered mobile number of the vendor organization
+
+      responses:
+        "200":
+          description: OTP generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "OTP generated"
+                  data:
+                    otpToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "400":
+          description: Invalid mobile number
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "The mobile number provided is not registered with us."
+
+        "403":
+          description: Vendor organization account blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Your account has been blocked. Please contact support for assistance."
+
+        "500":
+          description: Failed to generate OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to generate OTP. Please try again later."
+
+  /vendorOrg/login/verify-otp:
+    post:
+      tags:
+        - Vendor Organization
+      summary: Verify OTP and login vendor organization
+      description: |
+        Verifies the **OTP** sent to the vendor organization's registered mobile number.
+
+        **Flow:**
+        1. Vendor organization requests OTP using `/vendorOrg/login/otp`
+        2. System returns an **otpToken**
+        3. Vendor organization submits **otpToken + OTP** to verify login
+        4. If valid:
+          - Previous active tokens are deactivated
+          - New **accessToken** and **refreshToken** are generated
+          - OTP record is marked as inactive
+
+        **Important rules:**
+        - OTP must match the stored OTP
+        - OTP must belong to the correct vendor organization
+        - OTP token must match the stored token
+        - In development mode a **DEV OTP** may be allowed
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpToken
+                - otp
+              properties:
+                otpToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  description: OTP token received from `/vendorOrg/login/otp`
+
+                otp:
+                  type: string
+                  example: "1234"
+                  description: 4 digit OTP sent to the registered mobile number
+
+      responses:
+        "200":
+          description: OTP verified successfully and tokens generated
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "OTP verified and tokens generated"
+                  data:
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "400":
+          description: Invalid OTP or OTP token
+          content:
+            application/json:
+              schema:
+                type: object
+                examples:
+                  invalidOtpToken:
+                    summary: Invalid OTP token
+                    value:
+                      success: false
+                      message: "The provided OTP token is invalid. Please login again."
+
+                  invalidOtp:
+                    summary: Incorrect OTP
+                    value:
+                      success: false
+                      message: "The provided OTP is invalid. Please request a new OTP."
+
+                  userNotFound:
+                    summary: Vendor organization not found
+                    value:
+                      success: false
+                      message: "User does not exist. Please register."
+
+        "500":
+          description: Failed to verify OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to verify OTP. Please try again later."
+
+  /vendorOrg/login/resend-otp:
+    post:
+      tags:
+        - Vendor Organization
+      summary: Resend OTP for vendor organization login
+      description: |
+        Resends a new **OTP** for vendor organization login using a valid **otpToken**.
+
+        **Flow:**
+        - Vendor organization first calls `/vendorOrg/login/otp`
+        - System returns an **otpToken**
+        - If OTP expires or user didn't receive it, they can call this API to resend OTP.
+
+        **Important rules:**
+        - OTP request must be active
+        - Maximum **5 OTP resend attempts** allowed
+        - There is a **45-second cooldown** between OTP requests
+        - If limit exceeds → OTP record becomes inactive
+        - A new **OTP and otpToken** will be generated and returned
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpToken
+              properties:
+                otpToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  description: OTP token received from `/vendorOrg/login/otp`
+
+      responses:
+        "200":
+          description: OTP resent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "OTP resent successfully"
+                  data:
+                    otpToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "400":
+          description: No active OTP request
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "No active OTP found for this device. Please initiate login again."
+
+        "429":
+          description: Too many OTP requests or cooldown active
+          content:
+            application/json:
+              schema:
+                type: object
+                examples:
+                  otpLimitExceeded:
+                    summary: OTP request limit exceeded
+                    value:
+                      success: false
+                      message: "Too many OTP requests. Try again later."
+
+                  cooldownActive:
+                    summary: OTP resend cooldown
+                    value:
+                      success: false
+                      message: "Please wait 30 seconds before requesting a new OTP."
+
+        "500":
+          description: Failed to resend OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to resend OTP. Please try again later."
+
+  /vendorOrg/login/generate-refreshToken:
+    post:
+      tags:
+        - Vendor Organization
+      summary: Generate new access and refresh tokens
+      description: |
+        Generates a new **accessToken** and **refreshToken** using a valid vendor organization refresh token.
+
+        **Flow:**
+        - Vendor organization logs in using OTP verification
+        - System returns **accessToken** and **refreshToken**
+        - When access token expires, this API is used to generate new tokens
+
+        **Important rules:**
+        - Refresh token must be valid and active
+        - Token must match the one stored in the database
+        - Vendor organization account must exist and be active
+        - If account is **BLOCKED**, token refresh is denied
+        - Old refresh token is marked as **USED**
+        - A new token record is created with new tokens
+        - Refresh token expiry defaults to **60 days**
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  description: Valid vendor organization refresh token
+
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Tokens refreshed"
+                  data:
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        "400":
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                examples:
+                  tokenNotFound:
+                    summary: Refresh token not found
+                    value:
+                      success: false
+                      message: "Invalid or inactive refresh token."
+
+                  tokenMismatch:
+                    summary: Refresh token mismatch
+                    value:
+                      success: false
+                      message: "Provided refresh token does not match."
+
+                  tokenInvalidState:
+                    summary: Refresh token invalid state
+                    value:
+                      success: false
+                      message: "Refresh token is not active."
+
+        "403":
+          description: Vendor organization account blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Account has been blocked. Please contact support for assistance."
+
+        "404":
+          description: Vendor organization not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "The user associated with this token does not exist."
+
+        "500":
+          description: Failed to refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to refresh token. Please login again."
