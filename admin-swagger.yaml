@@ -5146,6 +5146,85 @@ paths:
                   success: false
                   message: "Failed to block user"
 
+  /customer/unblock-customer/{id}:
+    post:
+      tags:
+        - Customer
+      summary: Unblock a customer
+      description: |
+        Unblocks an existing customer account.
+
+        **Important rules & behavior:**
+        - Only users with `isActive = true` can be unblocked
+        - If the user does not exist → returns **404**
+        - If the user is not currently blocked → returns **400**
+        - On success, `isBlocked` is set to **false**
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the customer to unblock
+          schema:
+            type: integer
+            example: 12
+
+      responses:
+        "200":
+          description: Customer unblocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Customer unblocked successfully"
+                  data:
+                    updated: true
+
+        "400":
+          description: User is not blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "User is not blocked"
+
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "User not found"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Unauthorized"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to unblock user"
+
   /enquiry/create-enquiry:
     post:
       tags:
@@ -5268,6 +5347,69 @@ paths:
                 example:
                   success: false
                   message: "Failed to create enquiry"
+
+  /enquiry/request-call:
+    post:
+      tags:
+        - Public
+      summary: Request a call
+      description: |
+        Creates a request for a callback from the team.
+
+        **Important rules & behavior:**
+        - This is a **public API used on the website**
+        - Requires a valid **10-digit Indian mobile number**
+        - If a request with the same mobile number already exists with **PENDING** status,
+          a new request cannot be created
+        - On success, a request is created with:
+          - `status` → **PENDING**
+          - `isActive` → **true**
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mobile
+              properties:
+                mobile:
+                  type: string
+                  description: 10 digit mobile number
+                  example: "9876543210"
+
+      responses:
+        "200":
+          description: Request call submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Request call submitted successfully"
+                  data: null
+
+        "400":
+          description: Request already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "A request for this mobile number has already been submitted. Our team will contact you soon."
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to create request call"
 
 
 
