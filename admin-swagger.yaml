@@ -4456,6 +4456,76 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /cars/vehicle-tiers:
+    get:
+      tags:
+        - Vehicle
+      summary: Get vehicle tiers
+      description: |
+        Fetches a list of available vehicle tiers.
+
+        **Available tiers:**
+        - STANDARD → Standard vehicles
+        - PREMIUM → Premium vehicles
+
+        **Important rules & behavior:**
+        - Data is derived from system constants
+        - Each tier contains:
+          - `displayName` → user-friendly label
+          - `value` → enum value used internally
+        - Supports pagination (default applied)
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+
+      responses:
+        "200":
+          description: Vehicle tiers fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Vehicle tiers fetched successfully"
+                  data:
+                    items:
+                      - displayName: "Standard"
+                        value: "STANDARD"
+                      - displayName: "Premium"
+                        value: "PREMIUM"
+                    total: 2
+                    page: 1
+                    limit: 10
+                    totalPages: 1
+
+        "500":
+          description: Failed to fetch vehicle tiers
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch vehicle tiers. Please try again later."
+
   /service/create-service:
     post:
       tags:
@@ -4883,6 +4953,69 @@ paths:
                 example:
                   success: false
                   message: "Failed to fetch services"
+
+  /service/single-service/{id}:
+    get:
+      tags:
+        - Service
+      summary: Get single service details
+      description: |
+        Fetches detailed information of a specific service by ID.
+
+        **Important rules & behavior:**
+        - Only services with `isActive = true` are returned
+        - Returns complete service details including image URL
+        - Image is fetched via relation (`adminFile → file`)
+        - If service does not exist, returns error
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Service ID
+
+      responses:
+        "200":
+          description: Service fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Service fetched successfully"
+                  data:
+                    id: 1
+                    name: "car_wash"
+                    displayName: "Car Wash"
+                    description: "Complete car cleaning service"
+                    displaySequence: 1
+                    imageId: "https://example.com/uploads/service-image.png"
+
+        "404":
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Service does not exist."
+
+        "500":
+          description: Failed to fetch service
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch single service. Please try again later."
 
 
   /customer/list-customer:
