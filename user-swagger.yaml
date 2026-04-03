@@ -562,7 +562,7 @@ paths:
         "500":
           $ref: '#/components/responses/InternalServerError'
 
-  /cars/car-listing:
+  /vehicle/car-listing:
     get:
       tags:
         - Vehicle
@@ -610,7 +610,7 @@ paths:
         "500":
           $ref: '#/components/responses/InternalServerError'
 
-  /cars/car-brands:
+  /vehicle/car-brands:
     get:
       tags:
         - Vehicle
@@ -639,6 +639,81 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         "500":
           $ref: '#/components/responses/InternalServerError'
+
+  /vehicle/car-types:
+    get:
+      tags:
+        - Vehicle
+      summary: Get car types (categories)
+      description: |
+        Fetches a paginated list of available car types (car categories).
+
+        **Important rules & behavior:**
+        - Returns only `id` and `name` of car categories
+        - Results are sorted by **name (ASC)**
+        - Supports pagination
+        - Used in vehicle selection flows (e.g., booking, filtering)
+
+        **Default values:**
+        - `page` → 1
+        - `limit` → 10
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+
+      responses:
+        "200":
+          description: Car types fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "Car types fetched successfully"
+                  data:
+                    items:
+                      - id: 1
+                        name: "Hatchback"
+                      - id: 2
+                        name: "Sedan"
+                      - id: 3
+                        name: "SUV"
+                    total: 3
+                    page: 1
+                    limit: 10
+                    totalPages: 1
+
+        "500":
+          description: Failed to fetch car types
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "Failed to fetch carCategories"
 
   /banner-list:
     get:
